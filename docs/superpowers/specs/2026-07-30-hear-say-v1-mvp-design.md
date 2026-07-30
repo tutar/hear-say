@@ -1,10 +1,10 @@
-# Hear & Say V1 MVP 设计
+# Hear & Say V1 Feature 设计：Audio Learning Loop
 
 ## 背景与目标
 
 Hear & Say 面向有一定英语基础的中国学习者，目标是以真实兴趣音频形成轻量的“听、说、复习”闭环。项目展示名为 `Hear & Say`，未来 GitHub 仓库 slug 为 `hear-say`。
 
-本规格定义 Hear & Say 的完整 V1：本地导入音频后的听说学习闭环。网页划词、翻译、词汇卡、统一单词本和 Chrome 标签页录音不属于 V1，留待 V2 再讨论。
+本规格只定义 Hear & Say V1 的 `Audio Learning Loop` feature：本地导入音频后的听说学习闭环。完整 V1 仍包含网页划词、翻译、词汇卡、统一单词本和 Chrome 标签页录音；它们不在本 feature 的开发范围内，会在后续 V1 feature 中单独规格化。
 
 ## 成功标准
 
@@ -131,7 +131,7 @@ type AsrSettings = {
 
 ## 后续切片
 
-V2 候选包括网页划词、翻译、词汇卡、统一单词本与词汇复习，以及 Side Panel 主动录制当前标签页音频。V2 是否启动、如何与音频材料共享数据，均以 V1 的真实使用反馈为前提。
+后续 V1 feature 包括浏览词汇与统一单词本，以及 Side Panel 主动录制当前标签页音频，并验证录音产物可进入本 feature 定义的转写与练习流程。它们与 Audio Learning Loop 的数据边界和实现顺序将在各自规格中确定。
 
 ## 决策依据
 
