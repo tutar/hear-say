@@ -22,6 +22,8 @@ export type Material = {
   firstRoundStage: FirstRoundStage
   nextReviewAt: string | null
   reviewStep: number
+  isFavorite: boolean
+  tags: string[]
   retellKeywords?: string[]
   createdAt: string
   updatedAt: string

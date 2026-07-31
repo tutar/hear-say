@@ -1,15 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Material, Segment } from '@/domain/types'
 import { PracticeFlow } from '@/features/practice/PracticeFlow'
 
 const material: Material = {
   id: 'm1', title: 'Lesson', audioBlob: new Blob(['audio']), durationSeconds: 5, status: 'ready', transcriptionError: null,
-  firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, createdAt: '', updatedAt: '',
+  firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, isFavorite: false, tags: [], createdAt: '', updatedAt: '',
 }
 const segments: Segment[] = [{ id: 's1', materialId: 'm1', order: 0, startSeconds: 0, endSeconds: 1, text: 'First transcript sentence', isDifficult: false }]
 
 describe('PracticeFlow', () => {
+  afterEach(cleanup)
   it('hides the transcript during blind listening', () => {
     render(<PracticeFlow material={material} segments={segments} onComplete={vi.fn()} />)
     expect(screen.getByRole('heading', { name: 'Blind listening' })).toBeInTheDocument()
@@ -33,5 +34,13 @@ describe('PracticeFlow', () => {
     render(<PracticeFlow material={{ ...material, firstRoundStage: 'complete', nextReviewAt: '2026-07-30T00:00:00.000Z' }} segments={segments} onComplete={vi.fn()} onCompleteReview={onCompleteReview} />)
     fireEvent.click(screen.getByRole('button', { name: '完成本次复习' }))
     expect(onCompleteReview).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }))
+  })
+
+  it('opens the timeline editor without changing learning flow in subtitle-only mode', () => {
+    const onComplete = vi.fn()
+    render(<PracticeFlow material={{ ...material, firstRoundStage: 'blind_listen' }} segments={segments} editorOnly onComplete={onComplete} onSegmentsSaved={vi.fn()} />)
+    expect(screen.getByLabelText('Segment 1 text')).toHaveValue('First transcript sentence')
+    expect(screen.queryByRole('button', { name: /完成/ })).not.toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
   })
 })

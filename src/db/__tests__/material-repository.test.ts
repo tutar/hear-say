@@ -58,4 +58,22 @@ describe('MaterialRepository', () => {
     await expect(repository.renameMaterial(material.id, '  podcast clip  ')).resolves.toMatchObject({ title: 'podcast clip' })
     await expect(repository.renameMaterial(material.id, '   ')).rejects.toThrow('title is required')
   })
+
+  it('persists card metadata and resets only learning progress', async () => {
+    const repository = new MaterialRepository()
+    const material = await repository.createPending({ title: 'lesson.wav', audioBlob: new Blob(), durationSeconds: 5 })
+    await repository.replaceSegments(material.id, [{ ...segment, materialId: material.id }])
+    await repository.saveMaterial({ ...(await repository.getMaterial(material.id))!, firstRoundStage: 'complete', nextReviewAt: '2026-08-01T00:00:00.000Z', reviewStep: 3, retellKeywords: ['idea'] })
+
+    await repository.setFavorite(material.id, true)
+    await repository.setTags(material.id, [' podcast ', 'work', 'podcast', ''])
+    await repository.resetLearningProgress(material.id)
+
+    const reset = await repository.getMaterial(material.id)
+    expect(reset).toMatchObject({
+      isFavorite: true, tags: ['podcast', 'work'], firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0,
+      segments: [expect.objectContaining({ text: 'Hello' })],
+    })
+    expect(reset?.retellKeywords).toBeUndefined()
+  })
 })

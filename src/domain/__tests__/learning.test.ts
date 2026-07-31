@@ -6,7 +6,7 @@ function materialAt(stage: Material['firstRoundStage']): Material {
   return {
     id: 'm1', title: 'clip.wav', audioBlob: new Blob(['audio']), durationSeconds: 5,
     status: 'ready', transcriptionError: null, firstRoundStage: stage, nextReviewAt: null,
-    reviewStep: 0, createdAt: '2026-07-30T00:00:00.000Z', updatedAt: '2026-07-30T00:00:00.000Z',
+    reviewStep: 0, isFavorite: false, tags: [], createdAt: '2026-07-30T00:00:00.000Z', updatedAt: '2026-07-30T00:00:00.000Z',
   }
 }
 

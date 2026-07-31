@@ -11,6 +11,12 @@ export class HearSayDatabase extends Dexie {
       materials: 'id,status,nextReviewAt,updatedAt',
       segments: 'id,materialId,[materialId+order],isDifficult',
     })
+    this.version(2).stores({
+      materials: 'id,status,nextReviewAt,updatedAt,isFavorite,*tags',
+      segments: 'id,materialId,[materialId+order],isDifficult',
+    }).upgrade(async (tx) => {
+      await tx.table('materials').toCollection().modify({ isFavorite: false, tags: [] })
+    })
   }
 }
 

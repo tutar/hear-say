@@ -5,20 +5,26 @@ import { MaterialRow } from '@/features/library/MaterialRow'
 
 const material: Material = {
   id: 'm1', title: 'lesson.wav', audioBlob: new Blob(['audio']), durationSeconds: 5, status: 'ready', transcriptionError: null,
-  firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, createdAt: '', updatedAt: '',
+  firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, isFavorite: false, tags: [], createdAt: '', updatedAt: '',
 }
 
 describe('MaterialRow', () => {
   afterEach(cleanup)
 
   function renderRow(onRename = vi.fn(async () => undefined), onDelete = vi.fn(async () => undefined)) {
-    render(<MaterialRow material={material} actions={<button type="button">开始练习</button>} onRename={onRename} onDelete={onDelete} />)
-    return { onRename, onDelete }
+    const onToggleFavorite = vi.fn(async () => undefined)
+    const onSaveTags = vi.fn(async () => undefined)
+    const onExport = vi.fn()
+    const onResetProgress = vi.fn(async () => undefined)
+    const onManageSubtitles = vi.fn()
+    render(<MaterialRow material={material} actions={<button type="button">开始练习</button>} onRename={onRename} onDelete={onDelete} onToggleFavorite={onToggleFavorite} availableTags={['work']} onSaveTags={onSaveTags} onExport={onExport} onResetProgress={onResetProgress} onManageSubtitles={onManageSubtitles} />)
+    return { onRename, onDelete, onToggleFavorite, onSaveTags, onExport, onResetProgress, onManageSubtitles }
   }
+  function openMenu() { fireEvent.click(screen.getByRole('button', { name: '更多操作 lesson.wav' })) }
 
   it('saves a trimmed name through the library callback', async () => {
     const { onRename } = renderRow()
-    fireEvent.click(screen.getByRole('button', { name: '重命名 lesson.wav' }))
+    openMenu(); fireEvent.click(screen.getByRole('menuitem', { name: '重命名' }))
     fireEvent.change(screen.getByLabelText('材料名称'), { target: { value: '  revised  ' } })
     fireEvent.click(screen.getByRole('button', { name: '保存名称' }))
     expect(onRename).toHaveBeenCalledWith('m1', 'revised')
@@ -26,7 +32,7 @@ describe('MaterialRow', () => {
 
   it('rejects an empty name without persisting', () => {
     const { onRename } = renderRow()
-    fireEvent.click(screen.getByRole('button', { name: '重命名 lesson.wav' }))
+    openMenu(); fireEvent.click(screen.getByRole('menuitem', { name: '重命名' }))
     fireEvent.change(screen.getByLabelText('材料名称'), { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: '保存名称' }))
     expect(screen.getByText('材料名称不能为空')).toBeInTheDocument()
@@ -35,7 +41,7 @@ describe('MaterialRow', () => {
 
   it('cancels an in-place rename without persisting', () => {
     const { onRename } = renderRow()
-    fireEvent.click(screen.getByRole('button', { name: '重命名 lesson.wav' }))
+    openMenu(); fireEvent.click(screen.getByRole('menuitem', { name: '重命名' }))
     fireEvent.change(screen.getByLabelText('材料名称'), { target: { value: 'discarded' } })
     fireEvent.click(screen.getByRole('button', { name: '取消重命名' }))
     expect(onRename).not.toHaveBeenCalled()
@@ -44,7 +50,7 @@ describe('MaterialRow', () => {
 
   it('closes a delete confirmation without mutating the material', () => {
     const { onDelete } = renderRow()
-    fireEvent.click(screen.getByRole('button', { name: '删除 lesson.wav' }))
+    openMenu(); fireEvent.click(screen.getByRole('menuitem', { name: '删除' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('音频、句子时间轴与学习记录将一并永久删除')
     fireEvent.click(screen.getByRole('button', { name: '取消删除' }))
     expect(onDelete).not.toHaveBeenCalled()
@@ -53,8 +59,46 @@ describe('MaterialRow', () => {
 
   it('deletes only after the learner confirms in the custom dialog', () => {
     const { onDelete } = renderRow()
-    fireEvent.click(screen.getByRole('button', { name: '删除 lesson.wav' }))
+    openMenu(); fireEvent.click(screen.getByRole('menuitem', { name: '删除' }))
     fireEvent.click(screen.getByRole('button', { name: '确认删除' }))
     expect(onDelete).toHaveBeenCalledWith('m1')
+  })
+
+  it('shows card metadata and provides favorite and menu actions', () => {
+    const { onToggleFavorite, onExport, onManageSubtitles } = renderRow()
+    expect(screen.getByText(/00:05 · 字幕/)).toBeInTheDocument()
+    expect(screen.getByText('首次学习')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '收藏 lesson.wav' }))
+    expect(onToggleFavorite).toHaveBeenCalledWith('m1', true)
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: '管理字幕' }))
+    expect(onManageSubtitles).toHaveBeenCalledWith('m1')
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: '导出' }))
+    expect(onExport).toHaveBeenCalledWith('m1')
+  })
+
+  it('closes the more menu when focus leaves the material card', () => {
+    renderRow()
+    openMenu()
+    const menu = screen.getByRole('menu')
+    fireEvent.blur(menu, { relatedTarget: document.body })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('saves selected and newly created tags, and confirms progress reset', () => {
+    const { onSaveTags, onResetProgress } = renderRow()
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: '管理标签' }))
+    fireEvent.click(screen.getByLabelText('work'))
+    fireEvent.change(screen.getByLabelText('新标签'), { target: { value: ' podcast ' } })
+    fireEvent.click(screen.getByRole('button', { name: '添加标签' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存标签' }))
+    expect(onSaveTags).toHaveBeenCalledWith('m1', ['work', 'podcast'])
+    openMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: '重置学习进度' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('保留音频、字幕、标签和收藏')
+    fireEvent.click(screen.getByRole('button', { name: '确认重置' }))
+    expect(onResetProgress).toHaveBeenCalledWith('m1')
   })
 })

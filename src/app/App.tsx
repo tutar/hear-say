@@ -6,6 +6,7 @@ import { AsrSettingsForm } from '../features/library/AsrSettingsForm'
 import { AudioImportControl } from '../features/library/AudioImportControl'
 import { LibraryController } from '../features/library/library-controller'
 import { MaterialRow } from '../features/library/MaterialRow'
+import { toExportData } from '../features/library/material-export'
 import { PracticeFlow } from '../features/practice/PracticeFlow'
 import { ReviewQueue } from '../features/practice/ReviewQueue'
 import { transcribeAudio } from '../services/asr-client'
@@ -32,6 +33,7 @@ export function App() {
   const [libraryLoaded, setLibraryLoaded] = useState(false)
   const [active, setActive] = useState<MaterialWithSegments | null>(null)
   const [isReview, setIsReview] = useState(false)
+  const [subtitleEditor, setSubtitleEditor] = useState(false)
   const [message, setMessage] = useState('')
   const [isImporting, setIsImporting] = useState(false)
   const [asrSettings, setAsrSettings] = useState<AsrSettings>(DEFAULT_ASR_SETTINGS)
@@ -104,11 +106,16 @@ export function App() {
     await repository.deleteMaterial(id)
     await refresh()
   }
+  async function toggleFavorite(id: string, value: boolean) { await repository.setFavorite(id, value); await refresh() }
+  async function saveTags(id: string, tags: string[]) { await repository.setTags(id, tags); await refresh() }
+  async function resetProgress(id: string) { await repository.resetLearningProgress(id); await refresh() }
+  async function exportMaterial(id: string) { const material = await repository.getMaterial(id); if (!material) return; const url = URL.createObjectURL(new Blob([JSON.stringify(toExportData(material), null, 2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = `${material.title}.json`; link.click(); URL.revokeObjectURL(url) }
 
   async function openPractice(id: string, review = false) {
     setIsReview(review)
     setActive(await repository.getMaterial(id))
   }
+  async function manageSubtitles(id: string) { setSubtitleEditor(true); setIsReview(false); setActive(await repository.getMaterial(id)) }
 
   async function persistPractice(material: Material) {
     await repository.saveMaterial(material)
@@ -131,7 +138,7 @@ export function App() {
   }
 
   if (active) {
-    return <main className="app-shell practice-page"><header className="practice-header"><button className="back-link" type="button" onClick={() => { setIsReview(false); setActive(null) }}>← 返回材料库</button><p className="eyebrow">正在练习</p><h1>{active.title}</h1></header><PracticeFlow material={active} segments={active.segments} onComplete={(material) => void persistPractice(material)} onSegmentsSaved={(segments) => void persistSegments(segments)} onCompleteReview={isReview ? (material) => void completeReview(material) : undefined} /></main>
+    return <main className="app-shell practice-page"><header className="practice-header"><button className="back-link" type="button" onClick={() => { setIsReview(false); setSubtitleEditor(false); setActive(null) }}>← 返回材料库</button><p className="eyebrow">{subtitleEditor ? '管理字幕' : '正在练习'}</p><h1>{active.title}</h1></header><PracticeFlow material={active} segments={active.segments} editorOnly={subtitleEditor} onComplete={(material) => void persistPractice(material)} onSegmentsSaved={(segments) => void persistSegments(segments)} onCompleteReview={isReview ? (material) => void completeReview(material) : undefined} /></main>
   }
 
   return (
@@ -151,7 +158,7 @@ export function App() {
       <ReviewQueue materials={dueMaterials} onOpenMaterial={(id) => void openPractice(id, true)} />
       <section className="library-section">
         <div className="section-heading"><div><p className="eyebrow">材料库</p><h2>今天的听说素材</h2></div><span>{materials.length} 段</span></div>
-        {!libraryLoaded ? <p className="empty-state">正在读取本地材料…</p> : materials.length === 0 ? <p className="empty-state">还没有材料。选一段你真想听懂的英语音频，从这里开始。</p> : <ul className="material-list">{materials.map((material) => <MaterialRow key={material.id} material={material} onRename={renameMaterial} onDelete={deleteMaterial} actions={material.status === 'ready' ? <button className="primary-action" type="button" onClick={() => void openPractice(material.id)}>开始练习 →</button> : <div className="recovery-actions"><button type="button" onClick={() => void retryMaterial(material.id)}>重新转写</button><label>导入字幕<input aria-label={`SRT or VTT subtitle for ${material.title}`} type="file" accept=".srt,.vtt,text/vtt" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importSubtitle(material.id, file) }} /></label></div>} />)}</ul>}
+        {!libraryLoaded ? <p className="empty-state">正在读取本地材料…</p> : materials.length === 0 ? <p className="empty-state">还没有材料。选一段你真想听懂的英语音频，从这里开始。</p> : <ul className="material-list">{materials.map((material) => <MaterialRow key={material.id} material={material} onRename={renameMaterial} onDelete={deleteMaterial} onToggleFavorite={toggleFavorite} availableTags={[...new Set(materials.flatMap((item) => item.tags))]} onSaveTags={saveTags} onExport={(id) => void exportMaterial(id)} onResetProgress={resetProgress} onManageSubtitles={(id) => void manageSubtitles(id)} actions={material.status === 'ready' ? <button className="primary-action" type="button" onClick={() => void openPractice(material.id)}>开始练习 →</button> : <div className="recovery-actions"><button type="button" onClick={() => void retryMaterial(material.id)}>重新转写</button><label>导入字幕<input aria-label={`SRT or VTT subtitle for ${material.title}`} type="file" accept=".srt,.vtt,text/vtt" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importSubtitle(material.id, file) }} /></label></div>} />)}</ul>}
       </section>
     </main>
   )

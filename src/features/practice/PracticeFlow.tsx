@@ -3,7 +3,7 @@ import { completeStage } from '../../domain/learning'
 import type { Material, Segment } from '../../domain/types'
 import { SegmentEditor } from './SegmentEditor'
 
-type Props = { material: Material; segments: Segment[]; onComplete: (material: Material) => void; onSegmentsSaved?: (segments: Segment[]) => void; onCompleteReview?: (material: Material) => void }
+type Props = { material: Material; segments: Segment[]; onComplete: (material: Material) => void; onSegmentsSaved?: (segments: Segment[]) => void; onCompleteReview?: (material: Material) => void; editorOnly?: boolean }
 
 const labels = {
   blind_listen: 'Blind listening',
@@ -13,7 +13,7 @@ const labels = {
   complete: 'First round complete',
 } as const
 
-export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, onCompleteReview }: Props) {
+export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, onCompleteReview, editorOnly = false }: Props) {
   const [stage, setStage] = useState(material.firstRoundStage)
   const [rate, setRate] = useState(1)
   const [activeSegment, setActiveSegment] = useState<Segment | null>(null)
@@ -51,6 +51,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     onComplete(updated)
   }
 
+  if (editorOnly) return <section className="practice-flow"><h2>管理字幕</h2><audio ref={audioRef} controls src={audioUrl} /><div className="player-controls"><label className="speed-control">播放速度 <select value={rate} onChange={(event) => setRate(Number(event.target.value))}><option value={0.75}>0.75×</option><option value={1}>1×</option><option value={1.25}>1.25×</option></select></label></div><SegmentEditor durationSeconds={material.durationSeconds} segments={segments} onSegmentsSaved={onSegmentsSaved ?? (() => undefined)} onPlaySegment={playSegment} /></section>
   if (stage === 'complete') return <section className="practice-flow completion-card"><p className="eyebrow">{onCompleteReview ? '到期复习' : '首轮完成'}</p><h2>{onCompleteReview ? '完成这一轮复习' : labels.complete}</h2><p>{onCompleteReview ? '这会按既定间隔安排下一次复习。' : `下次复习：${material.nextReviewAt ?? '已安排'}`}</p>{onCompleteReview && <button className="review-complete-action" type="button" onClick={() => onCompleteReview(material)}>完成本次复习</button>}</section>
 
   const showTranscript = stage === 'intensive_listen' || stage === 'shadowing'

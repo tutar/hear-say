@@ -18,7 +18,7 @@ export class MaterialRepository {
     const now = new Date().toISOString()
     const material: Material = {
       id: crypto.randomUUID(), ...input, title: await this.uniqueTitle(input.title), status: 'pending_transcription', transcriptionError: null,
-      firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, createdAt: now, updatedAt: now,
+      firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, isFavorite: false, tags: [], createdAt: now, updatedAt: now,
     }
     await db.materials.add(material)
     return material
@@ -72,6 +72,19 @@ export class MaterialRepository {
     return material
   }
 
+  async setFavorite(materialId: string, isFavorite: boolean): Promise<void> {
+    await this.updateMaterial(materialId, { isFavorite })
+  }
+
+  async setTags(materialId: string, tags: string[]): Promise<void> {
+    const normalizedTags = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))]
+    await this.updateMaterial(materialId, { tags: normalizedTags })
+  }
+
+  async resetLearningProgress(materialId: string): Promise<void> {
+    await this.updateMaterial(materialId, { firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, retellKeywords: undefined })
+  }
+
   async deleteMaterial(materialId: string): Promise<void> {
     await db.transaction('rw', db.materials, db.segments, async () => {
       await db.segments.where('materialId').equals(materialId).delete()
@@ -85,5 +98,10 @@ export class MaterialRepository {
     let candidate = `${title}-${randomSuffix()}`
     while (existingTitles.has(candidate)) candidate = `${title}-${randomSuffix()}`
     return candidate
+  }
+
+  private async updateMaterial(materialId: string, changes: Partial<Material>): Promise<void> {
+    const count = await db.materials.update(materialId, { ...changes, updatedAt: new Date().toISOString() })
+    if (count === 0) throw new Error('material was not found')
   }
 }

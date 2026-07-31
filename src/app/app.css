@@ -37,6 +37,16 @@ h2 { margin-bottom: .65rem; font-size: clamp(1.75rem, 4vw, 2.6rem); font-weight:
 .section-heading span { padding-bottom: .8rem; color: #58736a; font-size: .85rem; }
 .material-list { display: grid; gap: .75rem; padding: 0; list-style: none; }
 .material-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.15rem .1rem; border-bottom: 1px solid #d6e3dc; }
+.material-card { padding: 1.35rem; border: 0; border-radius: 1.25rem; background: #fff; box-shadow: 0 10px 22px rgb(18 52 47 / 7%); }
+.audio-ring { display: grid; flex: 0 0 auto; width: 3.6rem; height: 3.6rem; place-items: center; border: 5px solid #dce4df; border-top-color: #246bfd; border-right-color: #246bfd; border-radius: 50%; color: #246bfd; font-size: .7rem; letter-spacing: .08em; }
+.card-tags { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .7rem; }
+.card-tags span, .card-tags em { padding: .22rem .5rem; border-radius: .35rem; background: #d9e7ff; color: #315f9f; font-size: .78rem; font-style: normal; font-weight: 700; }
+.card-tags em { background: #e7e9ee; color: #56616d; }
+.icon-action { width: 2.25rem; height: 2.25rem; border: 0; border-radius: 50%; background: transparent; color: #738078; font-size: 1.35rem; line-height: 1; }
+.icon-action:hover { background: #e8f2ec; color: #12342f; }
+.more-menu { position: absolute; z-index: 5; right: 1rem; top: 4.5rem; display: grid; min-width: 10rem; padding: .4rem; border: 1px solid #d6e3dc; border-radius: .65rem; background: #fff; box-shadow: 0 14px 28px rgb(18 52 47 / 16%); }
+.more-menu button { padding: .65rem .75rem; border: 0; border-radius: .35rem; background: transparent; color: #26332e; text-align: left; }
+.more-menu button:hover { background: #eef5f0; }
 .material-info { min-width: 0; }
 .material-row strong { display: block; color: #12342f; }
 .material-row small { display: block; margin-top: .3rem; color: #6d7c76; }

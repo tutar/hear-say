@@ -6,7 +6,7 @@ import { ReviewQueue } from '@/features/practice/ReviewQueue'
 
 const due = (id: string, difficult: boolean): MaterialWithSegments => ({
   id, title: id, audioBlob: new Blob(['audio']), durationSeconds: 1, status: 'ready', transcriptionError: null,
-  firstRoundStage: 'complete', nextReviewAt: '2026-07-30T00:00:00.000Z', reviewStep: 0, createdAt: '', updatedAt: '',
+  firstRoundStage: 'complete', nextReviewAt: '2026-07-30T00:00:00.000Z', reviewStep: 0, isFavorite: false, tags: [], createdAt: '', updatedAt: '',
   segments: [{ id: `${id}-s`, materialId: id, order: 0, startSeconds: 0, endSeconds: 1, text: id, isDifficult: difficult }],
 })
 
