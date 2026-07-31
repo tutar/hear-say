@@ -136,9 +136,9 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   const showTranscript = stage === 'shadowing'
   return (
     <section className="practice-flow" aria-label="Practice flow">
-      <div className="stage-rail practice-rail" aria-label={`当前阶段：${labels[stage]}`}><span className={stage === 'blind_listen' ? 'active' : ''}>听</span><i /><span className={stage === 'intensive_listen' ? 'active' : ''}>看</span><i /><span className={stage === 'shadowing' ? 'active' : ''}>跟</span><i /><span className={stage === 'retelling' ? 'active' : ''}>说</span></div>
+      <div className="stage-rail practice-rail" aria-label={`当前阶段：${labels[stage]}`}><span className={stage === 'blind_listen' ? 'active' : ''}>听</span><i /><span>看</span><i /><span className={stage === 'shadowing' ? 'active' : ''}>跟</span><i /><span className={stage === 'retelling' ? 'active' : ''}>说</span></div>
       <h2>{labels[stage]}</h2>
-      <p className="stage-instruction">{stage === 'blind_listen' ? '先完整听一遍。不要急着看原文。' : stage === 'intensive_listen' ? '逐句校对你听到的内容，必要时修正时间和文本。' : stage === 'shadowing' ? '跟着句子开口，节奏比完美更重要。' : '合上原文，用自己的话复述这段内容。'}</p>
+      <p className="stage-instruction">{stage === 'blind_listen' ? '先完整听一遍。不要急着看原文。' : stage === 'shadowing' ? '跟着句子开口，节奏比完美更重要。' : '合上原文，用自己的话复述这段内容。'}</p>
       <audio ref={audioRef} controls src={audioUrl} />
       {stage !== 'blind_listen' && <div className="player-controls"><label className="speed-control">播放速度 <select value={rate} onChange={(event) => setRate(Number(event.target.value))}><option value={0.75}>0.75×</option><option value={1}>1×</option><option value={1.25}>1.25×</option></select></label><label className="loop-control"><input type="checkbox" checked={loopSegment} onChange={(event) => setLoopSegment(event.target.checked)} /> 循环当前句</label></div>}
       {showTranscript && <SegmentEditor durationSeconds={material.durationSeconds} segments={segments} onSegmentsSaved={onSegmentsSaved ?? (() => undefined)} onPlaySegment={playSegment} />}

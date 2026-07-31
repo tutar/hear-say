@@ -47,6 +47,8 @@ corepack pnpm test
 corepack pnpm build
 ```
 
+单元和组件测试位于顶层 `tests/`；针对构建后 Chrome 扩展的 Playwright E2E 位于 `e2e/`，并使用本地 FunASR。完整的环境准备、测试边界和提交要求见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 手动验收路径：
 
 1. 加载 `.output/chrome-mv3`，从工具栏打开扩展。

@@ -3,3 +3,7 @@ node_modules/
 .wxt/
 coverage/
 docs/*.png
+docs/output.wav
+docs/english-learning-agent
+playwright-report/
+test-results/
