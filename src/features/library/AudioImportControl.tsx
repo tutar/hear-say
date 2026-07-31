@@ -5,8 +5,9 @@ type Props = {
 
 export function AudioImportControl({ isImporting, onSelectFile }: Props) {
   return <div className="import-control">
-    <label className="file-cta" aria-busy={isImporting}>
-      {isImporting ? '正在转写…' : '选择音频文件'}
+    <label className="file-cta" aria-busy={isImporting} title={isImporting ? '正在转写音频' : '添加音频'}>
+      <span aria-hidden="true">{isImporting ? '···' : '+'}</span>
+      <span className="visually-hidden">{isImporting ? '正在转写音频' : '添加音频'}</span>
       <input aria-label="选择音频文件" type="file" accept="audio/*" disabled={isImporting} onChange={(event) => {
         const file = event.target.files?.[0]
         if (file) onSelectFile(file)
