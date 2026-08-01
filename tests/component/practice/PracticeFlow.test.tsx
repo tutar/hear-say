@@ -55,6 +55,14 @@ describe('PracticeFlow', () => {
     expect(screen.getByRole('button', { name: '播放当前句' })).toHaveTextContent('▶')
   })
 
+  it('offers the shared translator after a learner selects text in the intensive transcript', () => {
+    vi.spyOn(window, 'getSelection').mockReturnValue({ toString: () => 'transcript' } as Selection)
+    render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={segments} onComplete={vi.fn()} onVocabularyLookup={vi.fn()} onVocabularyAdd={vi.fn()} onVocabularySpeak={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: '听不太懂' }))
+    fireEvent.mouseUp(screen.getByText('First transcript sentence'))
+    expect(screen.getByRole('button', { name: '翻译 transcript' })).toBeInTheDocument()
+  })
+
   it('shows learner-authored keyword prompts while retelling', () => {
     render(<PracticeFlow material={{ ...material, firstRoundStage: 'retelling' }} segments={segments} onComplete={vi.fn()} />)
     expect(screen.getByLabelText('复述关键词')).toBeInTheDocument()

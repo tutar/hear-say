@@ -1,9 +1,14 @@
-import type { AsrSettings } from '../domain/types'
+import type { AsrSettings, VocabularySettings } from '../domain/types'
 
 export const DEFAULT_ASR_SETTINGS: AsrSettings = {
   baseUrl: 'http://localhost:8021/v1',
   apiKey: '',
   model: 'sensevoice',
+}
+export const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
+  baseUrl: 'https://api.deepseek.com',
+  apiKey: '',
+  model: 'deepseek-v4-flash',
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -19,4 +24,13 @@ export async function loadAsrSettings(): Promise<AsrSettings> {
 
 export async function saveAsrSettings(settings: AsrSettings): Promise<void> {
   await browser.storage.local.set({ asrSettings: { ...settings, baseUrl: normalizeBaseUrl(settings.baseUrl) } })
+}
+
+export async function loadVocabularySettings(): Promise<VocabularySettings> {
+  const stored = await browser.storage.local.get('vocabularySettings') as { vocabularySettings?: VocabularySettings }
+  return stored.vocabularySettings ? { ...DEFAULT_VOCABULARY_SETTINGS, ...stored.vocabularySettings } : { ...DEFAULT_VOCABULARY_SETTINGS }
+}
+
+export async function saveVocabularySettings(settings: VocabularySettings): Promise<void> {
+  await browser.storage.local.set({ vocabularySettings: { ...settings, baseUrl: normalizeBaseUrl(settings.baseUrl) } })
 }

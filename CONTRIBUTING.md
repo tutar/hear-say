@@ -85,7 +85,7 @@ OpenAPI 健康检查默认最多等待 60 秒。如果本地模型冷启动更�
 
 E2E fixture `e2e/fixtures/english-sample.wav` 以 CC0 公开，仅用于测试。由于真实模型输出可能随 FunASR 版本变化，E2E 断言稳定的产品行为，不逐字匹配完整转写内容。
 
-GitHub Actions 不运行 E2E，因为 GitHub 托管 Runner 没有本项目所需的 CUDA FunASR 环境。提交 PR 前，请在具备条件时于本地运行 E2E，并在 PR 中说明结果。
+词汇 E2E 会在 Playwright 网络边界模拟 DeepSeek `/chat/completions`，不得使用个人 API Key 或产生外部费用；它覆盖普通网页和逐句精听两个划词入口。GitHub Actions 不运行完整 E2E，因为 GitHub 托管 Runner 没有本项目所需的 CUDA FunASR 环境。提交 PR 前，请在具备条件时于本地运行 E2E，并在 PR 中说明结果。
 
 ## 提交前检查
 

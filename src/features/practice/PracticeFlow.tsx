@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { completeStage } from '../../domain/learning'
 import type { Material, Segment } from '../../domain/types'
 import { SegmentEditor } from './SegmentEditor'
+import { SelectionTranslator } from '../library/SelectionTranslator'
+import type { WordSource } from '../../domain/types'
+import type { VocabularyLookup, VocabularySelection } from '../../services/vocabulary-service'
 
-type Props = { material: Material; segments: Segment[]; onComplete: (material: Material) => void; onSegmentsSaved?: (segments: Segment[]) => void; onCompleteReview?: (material: Material) => void; editorOnly?: boolean; onExit?: () => void; navigation?: ReactNode }
+type Props = { material: Material; segments: Segment[]; onComplete: (material: Material) => void; onSegmentsSaved?: (segments: Segment[]) => void; onCompleteReview?: (material: Material) => void; editorOnly?: boolean; onExit?: () => void; navigation?: ReactNode; onVocabularyLookup?: (selection: VocabularySelection) => Promise<VocabularyLookup>; onVocabularyAdd?: (selection: VocabularySelection, lookup: VocabularyLookup, source: WordSource) => Promise<void>; onVocabularySpeak?: (term: string) => void; onVocabularyOpenSettings?: () => void }
 
 const labels = {
   blind_listen: 'Blind listening',
@@ -28,7 +31,7 @@ function sentenceAnalysis(text: string) {
   return { keywords, weakWords, grammar }
 }
 
-export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, onCompleteReview, editorOnly = false, onExit, navigation }: Props) {
+export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, onCompleteReview, editorOnly = false, onExit, navigation, onVocabularyLookup, onVocabularyAdd, onVocabularySpeak, onVocabularyOpenSettings }: Props) {
   const [stage, setStage] = useState(material.firstRoundStage)
   const [rate, setRate] = useState(1)
   const [activeSegment, setActiveSegment] = useState<Segment | null>(null)
@@ -38,6 +41,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   const [needsHelp, setNeedsHelp] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [helpOptions, setHelpOptions] = useState({ analysis: true, translation: false, chunks: false })
+  const [vocabularySelection, setVocabularySelection] = useState<VocabularySelection | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   const audioUrl = useMemo(() => URL.createObjectURL(material.audioBlob), [material.audioBlob])
 
@@ -87,6 +91,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     setSegmentIndex(index)
     setNeedsHelp(false)
     setHelpOptions({ analysis: true, translation: false, chunks: false })
+    setVocabularySelection(null)
     if (segments[index]) playSegment(segments[index])
   }
   function markDifficult() {
@@ -96,6 +101,11 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   }
   function toggleHelp(option: keyof typeof helpOptions) {
     setHelpOptions((current) => ({ ...current, [option]: !current[option] }))
+  }
+  function selectVocabulary() {
+    if (!currentSegment || !onVocabularyLookup) return
+    const term = window.getSelection()?.toString().trim() ?? ''
+    if (term) setVocabularySelection({ term, sentence: currentSegment.text.slice(0, 500) })
   }
 
   if (editorOnly) return <section className="practice-flow"><h2>管理字幕</h2><audio ref={audioRef} controls src={audioUrl} /><div className="player-controls"><label className="speed-control">播放速度 <select value={rate} onChange={(event) => setRate(Number(event.target.value))}><option value={0.75}>0.75×</option><option value={1}>1×</option><option value={1.25}>1.25×</option></select></label></div><SegmentEditor durationSeconds={material.durationSeconds} segments={segments} onSegmentsSaved={onSegmentsSaved ?? (() => undefined)} onPlaySegment={playSegment} /></section>
@@ -115,8 +125,9 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
         <nav className="help-tabs" aria-label="显示辅助内容"><button className={helpOptions.analysis ? 'active' : ''} aria-pressed={helpOptions.analysis} onClick={() => toggleHelp('analysis')}>解析</button><button className={helpOptions.translation ? 'active' : ''} aria-pressed={helpOptions.translation} onClick={() => toggleHelp('translation')}>翻译</button><button className={helpOptions.chunks ? 'active' : ''} aria-pressed={helpOptions.chunks} onClick={() => toggleHelp('chunks')}>意群</button></nav>
         <div className="sentence-help">
           {helpOptions.chunks
-            ? <p className="sentence-transcript sentence-chunks">{currentSegment?.text.split(/([,;:.!?]\s*)/).filter(Boolean).map((chunk, index) => <mark key={`${chunk}-${index}`}>{chunk}</mark>)}</p>
-            : <p className="sentence-transcript">{currentSegment?.text || '当前句没有字幕。'}</p>}
+            ? <p className="sentence-transcript sentence-chunks" onMouseUp={selectVocabulary}>{currentSegment?.text.split(/([,;:.!?]\s*)/).filter(Boolean).map((chunk, index) => <mark key={`${chunk}-${index}`}>{chunk}</mark>)}</p>
+            : <p className="sentence-transcript" onMouseUp={selectVocabulary}>{currentSegment?.text || '当前句没有字幕。'}</p>}
+          {vocabularySelection && onVocabularyLookup && onVocabularyAdd && <div className="practice-selection-translation"><SelectionTranslator selection={vocabularySelection} onLookup={onVocabularyLookup} onAdd={(lookup) => onVocabularyAdd(vocabularySelection, lookup, { kind: 'material', title: material.title, materialId: material.id, segmentId: currentSegment?.id ?? '' })} onSpeak={onVocabularySpeak ?? (() => undefined)} onOpenSettings={onVocabularyOpenSettings} onClose={() => setVocabularySelection(null)} /></div>}
           {helpOptions.translation && <section className="translation-block" aria-label="翻译"><h2>翻译</h2><p>当前材料没有可用翻译。</p></section>}
           {helpOptions.analysis && <div className="analysis-sheet">
             <section><h2><span aria-hidden="true">Aa</span>重点词汇</h2>{analysis.keywords.length > 0 ? <ul>{analysis.keywords.map((word) => <li key={word}><strong>{word}</strong><span>内容词，通常承载句子的关键信息；结合上下文确认具体含义。</span></li>)}</ul> : <p>这句话没有明显的长内容词。重点关注动词和名词在上下文中的含义。</p>}</section>

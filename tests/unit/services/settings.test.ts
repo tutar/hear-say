@@ -8,7 +8,7 @@ const local = {
 
 vi.stubGlobal('browser', { storage: { local } })
 
-const { DEFAULT_ASR_SETTINGS, loadAsrSettings, saveAsrSettings } = await import('@/services/settings')
+const { DEFAULT_ASR_SETTINGS, DEFAULT_VOCABULARY_SETTINGS, loadAsrSettings, loadVocabularySettings, saveAsrSettings, saveVocabularySettings } = await import('@/services/settings')
 
 describe('ASR settings', () => {
   beforeEach(() => { storage.clear(); vi.clearAllMocks() })
@@ -20,5 +20,13 @@ describe('ASR settings', () => {
   it('normalizes a trailing base URL slash before saving', async () => {
     await saveAsrSettings({ baseUrl: 'https://asr.example/v1/', apiKey: 'secret', model: 'custom' })
     expect(await loadAsrSettings()).toEqual({ baseUrl: 'https://asr.example/v1', apiKey: 'secret', model: 'custom' })
+  })
+
+  it('stores vocabulary explanation settings independently from transcription settings', async () => {
+    expect(await loadVocabularySettings()).toEqual({ baseUrl: 'https://api.deepseek.com', apiKey: '', model: 'deepseek-v4-flash' })
+    await saveVocabularySettings({ ...DEFAULT_VOCABULARY_SETTINGS, apiKey: 'vocabulary-secret' })
+
+    expect(await loadVocabularySettings()).toEqual({ baseUrl: 'https://api.deepseek.com', apiKey: 'vocabulary-secret', model: 'deepseek-v4-flash' })
+    expect(await loadAsrSettings()).toEqual(DEFAULT_ASR_SETTINGS)
   })
 })

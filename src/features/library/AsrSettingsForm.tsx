@@ -8,7 +8,7 @@ export function AsrSettingsForm({ settings, onSave }: Props) {
   useEffect(() => setDraft(settings), [settings])
 
   return <form className="asr-settings" onSubmit={(event) => { event.preventDefault(); onSave(draft) }}>
-      <div className="settings-field-intro"><h3>识别服务</h3><p>兼容 OpenAI 音频转写接口的本地或远程服务。</p></div>
+      <div className="settings-field-intro"><p>兼容 OpenAI 音频转写接口的本地或远程服务。</p></div>
       <label>ASR 地址<input aria-label="ASR 地址" type="url" value={draft.baseUrl} onChange={(event) => setDraft({ ...draft, baseUrl: event.target.value })} required /></label>
       <label>模型<input aria-label="模型" value={draft.model} onChange={(event) => setDraft({ ...draft, model: event.target.value })} required /></label>
       <label>API Key<input aria-label="API Key" type="password" value={draft.apiKey} autoComplete="off" onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })} /></label>
