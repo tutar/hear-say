@@ -7,8 +7,9 @@ export type Transcribe = (input: { audioBlob: Blob; filename: string; materialId
 export class LibraryController {
   constructor(private readonly repository: MaterialRepository, private readonly transcribe: Transcribe) {}
 
-  async importAudio(file: File, durationSeconds: number | null): Promise<Material> {
+  async importAudio(file: File, durationSeconds: number | null, onPending?: (material: Material) => void): Promise<Material> {
     const material = await this.repository.createPending({ title: file.name, audioBlob: file, durationSeconds })
+    onPending?.(material)
     return this.transcribeExisting(material)
   }
 

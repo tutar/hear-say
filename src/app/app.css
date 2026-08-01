@@ -17,15 +17,15 @@ button { cursor: pointer; }
 .brand-lockup { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .brand-tools, .header-actions { display: flex; align-items: center; gap: 1rem; }
 .brand-identity { display: flex; align-items: center; gap: 1rem; }
-.brand-home { display: flex; align-items: center; gap: 1rem; padding: 0; border: 0; background: transparent; text-align: left; }
+.brand-home { display: flex; align-items: center; gap: 1rem; padding: 0; border: 0; background: transparent; text-align: left; text-decoration: none; }
 .brand-home > span:last-child { display: grid; }
 .brand-home small { color: #5f756e; font-family: var(--font-display); font-size: .68rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .brand-home h1 { margin-top: .15rem; color: #173e36; font-family: var(--font-display); font-size: var(--navigation-title-size); font-weight: 700; letter-spacing: -.015em; line-height: 1.1; }
 .global-page-header { width: min(100%, 1040px); margin: 0 auto; padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 5vw, 4rem) 1.5rem; border-bottom: 1px solid #dce4e0; }
 .primary-navigation { display: flex; align-items: center; gap: .15rem; padding: .25rem; border: 1px solid #dce4e0; border-radius: .7rem; background: #fff; }
-.primary-navigation button { min-height: 2.25rem; padding: .4rem .75rem; border: 0; border-radius: .45rem; background: transparent; color: #65756f; font-size: .875rem; font-weight: 600; }
-.primary-navigation button:hover { color: #173e36; }
-.primary-navigation button.active { background: #edf6f2; color: #173e36; }
+.primary-navigation a { display: grid; min-height: 2.25rem; padding: .4rem .75rem; place-items: center; border: 0; border-radius: .45rem; background: transparent; color: #65756f; font-size: .875rem; font-weight: 600; text-decoration: none; }
+.primary-navigation a:hover { color: #173e36; }
+.primary-navigation a.active { background: #edf6f2; color: #173e36; }
 .profile-control { position: relative; }
 .avatar-button { display: grid; width: 2.75rem; height: 2.75rem; padding: 0; place-items: center; border: 1px solid #173e36; border-radius: 50%; background: #173e36; color: #fff; }
 .avatar-button span { font-size: .7rem; font-weight: 800; letter-spacing: .06em; }
@@ -34,12 +34,9 @@ button { cursor: pointer; }
 .profile-menu strong, .profile-menu small { display: block; }
 .profile-menu strong { color: #173e36; font-size: .86rem; }
 .profile-menu small { margin-top: .25rem; color: #84928d; font-size: .72rem; }
-.profile-menu button { padding: .7rem .75rem; border: 0; border-radius: .4rem; background: transparent; color: #40514b; text-align: left; font-size: .82rem; }
-.profile-menu button:hover { background: #edf6f2; }
-.app-navigation { display: inline-flex; gap: .35rem; }
-.app-navigation button { display: grid; width: 2.45rem; height: 2.45rem; padding: 0; place-items: center; border: 1px solid #cfe0d9; border-radius: 50%; background: #fff; color: #173e36; font-size: 1.1rem; box-shadow: 0 2px 8px rgb(23 62 54 / 4%); }
-.app-navigation button:hover:not(:disabled) { border-color: #8fb9aa; background: #edf6f2; }
-.app-navigation button:disabled { border-color: #e2e8e5; background: transparent; color: #bdc8c4; cursor: default; box-shadow: none; }
+.profile-menu a { padding: .7rem .75rem; border: 0; border-radius: .4rem; background: transparent; color: #40514b; text-align: left; font-size: .82rem; text-decoration: none; }
+.profile-menu a:hover { background: #edf6f2; }
+.transcription-indicator { padding: .45rem .65rem; border-radius: .45rem; background: #fff4d6; color: #755616; font-size: .75rem; font-weight: 700; text-decoration: none; }
 .brand-mark { display: flex; align-items: center; justify-content: center; gap: 3px; width: 2.8rem; height: 2.8rem; border-radius: 50%; background: #173e36; }
 .brand-mark i { display: block; width: 2px; border-radius: 2px; background: #b9e5d3; }
 .brand-mark i:nth-child(1), .brand-mark i:nth-child(4) { height: .55rem; }
@@ -342,10 +339,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .brand-home { gap: .55rem; }
   .brand-mark { width: 2.5rem; height: 2.5rem; }
   :root { --navigation-title-size: 1.2rem; }
-  .app-navigation { gap: .2rem; }
-  .app-navigation button { width: 2.35rem; height: 2.35rem; }
   .primary-navigation { width: 100%; justify-self: stretch; }
-  .primary-navigation button { flex: 1; min-height: 2.6rem; padding-inline: .45rem; }
+  .primary-navigation a { flex: 1; min-height: 2.6rem; padding-inline: .45rem; }
   .avatar-button { width: 2.6rem; height: 2.6rem; }
   .profile-menu { position: fixed; top: 4.25rem; right: .9rem; left: .9rem; min-width: 0; }
   .brand-identity .eyebrow { display: none; }
@@ -398,7 +393,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 @media (max-width: 380px) {
   .brand-home h1 { display: none; }
   .brand-tools { gap: .35rem; }
-  .primary-navigation button { font-size: .78rem; }
+  .primary-navigation a { font-size: .78rem; }
   .audio-ring { display: none; }
   .material-row { grid-template-columns: minmax(0, 1fr) auto; }
   .material-info, .material-state { grid-column: 1; }
@@ -418,7 +413,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .intensive-controls .play-sentence { width: 4rem; height: 4rem; }
 }
 @media (pointer: coarse) {
-  .primary-navigation button, .profile-menu button, .task-group li button, .icon-action, .more-menu button { min-height: 44px; }
-  .app-navigation button, .avatar-button { min-width: 44px; min-height: 44px; }
+  .primary-navigation a, .profile-menu a, .task-group li button, .icon-action, .more-menu button { min-height: 44px; }
+  .avatar-button { min-width: 44px; min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }

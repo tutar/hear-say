@@ -42,7 +42,7 @@ test.describe('contextual vocabulary journey', () => {
     await expect(article.getByRole('button', { name: '加入生词本' })).toHaveText('已加入')
 
     await app.reload()
-    await app.getByRole('button', { name: '单词本' }).click()
+    await app.getByRole('link', { name: '单词本' }).click()
     await expect(app.getByText('动词 · 录制')).toBeVisible()
   })
 })

@@ -3,10 +3,11 @@ import { createDeepSeekExplainer } from '../src/services/deepseek-client'
 import { loadVocabularySettings } from '../src/services/settings'
 import { VocabularyService } from '../src/services/vocabulary-service'
 import type { VocabularyMessage, VocabularyMessageResponse } from '../src/services/vocabulary-messages'
+import { openOrFocusAppTab } from '../src/services/app-tab'
 
 export default defineBackground(() => {
   browser.action.onClicked.addListener(async () => {
-    await browser.tabs.create({ url: browser.runtime.getURL('/app.html') })
+    await openOrFocusAppTab(browser)
   })
 
   browser.runtime.onMessage.addListener(async (message: VocabularyMessage, sender): Promise<VocabularyMessageResponse> => {
@@ -30,7 +31,7 @@ export default defineBackground(() => {
       }
       if (message.type === 'vocabulary.stop') { browser.tts.stop(); return { ok: true, data: null } }
       if (message.type === 'vocabulary.openSettings') {
-        await browser.tabs.create({ url: browser.runtime.getURL('/app.html#settings') })
+        await openOrFocusAppTab(browser, '#/settings')
         return { ok: true, data: null }
       }
       return { ok: false, error: '不支持的词汇操作' }

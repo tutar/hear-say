@@ -38,7 +38,13 @@ test.describe.serial('audio learning journey', () => {
   })
 
   test('imports an audio file through the local FunASR service', async () => {
-    await page.getByRole('button', { name: '资料库' }).click()
+    await page.getByRole('link', { name: '资料库' }).click()
+    await expect(page).toHaveURL(/#\/library$/)
+    await page.goBack()
+    await expect(page).toHaveURL(/#\/learning$/)
+    await expect(page.getByRole('heading', { name: '学习任务' })).toBeVisible()
+    await page.goForward()
+    await expect(page).toHaveURL(/#\/library$/)
     await page.getByLabel('选择音频文件').setInputFiles(audioFixture)
 
     await expect(page.getByRole('status')).toContainText('正在转写音频')

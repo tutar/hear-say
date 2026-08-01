@@ -79,6 +79,7 @@ describe('PracticeFlow', () => {
   it('opens the timeline editor without changing learning flow in subtitle-only mode', () => {
     const onComplete = vi.fn()
     render(<PracticeFlow material={{ ...material, firstRoundStage: 'blind_listen' }} segments={segments} editorOnly onComplete={onComplete} onSegmentsSaved={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit segment 1' }))
     expect(screen.getByLabelText('Segment 1 text')).toHaveValue('First transcript sentence')
     expect(screen.queryByRole('button', { name: /完成/ })).not.toBeInTheDocument()
     expect(onComplete).not.toHaveBeenCalled()
