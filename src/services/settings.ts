@@ -4,6 +4,7 @@ export const DEFAULT_ASR_SETTINGS: AsrSettings = {
   baseUrl: 'http://localhost:8021/v1',
   apiKey: '',
   model: 'sensevoice',
+  language: 'en',
 }
 export const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
   baseUrl: 'https://api.deepseek.com',

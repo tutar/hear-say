@@ -8,13 +8,14 @@ describe('AsrSettingsForm', () => {
 
   it('lets a learner save an ASR endpoint and model without displaying the API key', () => {
     const onSave = vi.fn()
-    render(<AsrSettingsForm settings={{ baseUrl: 'http://localhost:8021/v1', apiKey: '', model: 'sensevoice' }} onSave={onSave} />)
+    render(<AsrSettingsForm settings={{ baseUrl: 'http://localhost:8021/v1', apiKey: '', model: 'sensevoice', language: 'en' }} onSave={onSave} />)
 
     fireEvent.change(screen.getByLabelText('ASR 地址'), { target: { value: 'http://localhost:9000/v1' } })
     fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'paraformer' } })
+    fireEvent.change(screen.getByLabelText('音频语言'), { target: { value: 'auto' } })
     fireEvent.click(screen.getByRole('button', { name: '保存转写设置' }))
 
     expect(screen.getByLabelText('API Key')).toHaveAttribute('type', 'password')
-    expect(onSave).toHaveBeenCalledWith({ baseUrl: 'http://localhost:9000/v1', apiKey: '', model: 'paraformer' })
+    expect(onSave).toHaveBeenCalledWith({ baseUrl: 'http://localhost:9000/v1', apiKey: '', model: 'paraformer', language: 'auto' })
   })
 })

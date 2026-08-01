@@ -9,6 +9,7 @@ export type WorkspacePlace =
   | { kind: 'free-listening'; materialId: string }
   | { kind: 'review'; materialId: string }
   | { kind: 'subtitles'; materialId: string }
+  | { kind: 'recording-draft'; draftId: string }
   | { kind: 'word'; wordId: string }
 
 export type ParsedWorkspaceHash = { place: WorkspacePlace; canonicalHash: string; issue: string | null }
@@ -29,6 +30,7 @@ export function formatWorkspacePlace(place: WorkspacePlace): string {
     case 'free-listening': return `#/materials/${encodeURIComponent(place.materialId)}/free-listening`
     case 'review': return `#/materials/${encodeURIComponent(place.materialId)}/review`
     case 'subtitles': return `#/materials/${encodeURIComponent(place.materialId)}/subtitles`
+    case 'recording-draft': return `#/recording-drafts/${encodeURIComponent(place.draftId)}`
     case 'word': return `#/words/${encodeURIComponent(place.wordId)}`
   }
 }
@@ -56,6 +58,10 @@ export function parseWorkspaceHash(hash: string): ParsedWorkspaceHash {
   if (parts[0] === 'words' && parts.length === 2) {
     const wordId = decodeId(parts[1])
     if (wordId) return valid({ kind: 'word', wordId })
+  }
+  if (parts[0] === 'recording-drafts' && parts.length === 2) {
+    const draftId = decodeId(parts[1])
+    if (draftId) return valid({ kind: 'recording-draft', draftId })
   }
   return invalid()
 }

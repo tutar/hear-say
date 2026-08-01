@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type MouseEvent, ty
 import { MaterialRepository } from '../db/material-repository'
 import { WordRepository } from '../db/word-repository'
 import { LearningRepository } from '../db/learning-repository'
+import { RecordingRepository } from '../db/recording-repository'
+import type { RecordingDraft } from '../domain/recording-draft'
 import type { AsrSettings, FreeListeningPreferences, FreeListeningProgress, Material, ReviewPlan, ReviewSchedule, VocabularySettings, WordSource } from '../domain/types'
 import { DEFAULT_FREE_LISTENING_PREFERENCES } from '../domain/free-listening'
 import { dailyLearningStats, type DailyLearningStats } from '../domain/learning-stats'
@@ -11,6 +13,9 @@ import { AiServiceSettings } from '../features/library/AiServiceSettings'
 import { AudioImportControl } from '../features/library/AudioImportControl'
 import type { Transcribe } from '../features/library/library-controller'
 import { MaterialRow } from '../features/library/MaterialRow'
+import { RecordingDraftList } from '../features/library/RecordingDraftList'
+import { RecordingDraftEditor } from '../features/library/RecordingDraftEditor'
+import { ConfirmDialog } from '../features/library/ConfirmDialog'
 import { Wordbook } from '../features/library/Wordbook'
 import { WordDetail } from '../features/library/WordDetail'
 import { toExportData } from '../features/library/material-export'
@@ -31,7 +36,7 @@ import { formatWorkspacePlace, type WorkspacePlace } from './workspace-routes'
 type PrimarySection = 'learning' | 'library' | 'words' | 'settings'
 const primarySectionFor = (place: WorkspacePlace): PrimarySection => {
   if (place.kind === 'word') return 'words'
-  if (place.kind === 'material' || place.kind === 'practice' || place.kind === 'review' || place.kind === 'subtitles' || place.kind === 'free-listening') return 'library'
+  if (place.kind === 'material' || place.kind === 'practice' || place.kind === 'review' || place.kind === 'subtitles' || place.kind === 'free-listening' || place.kind === 'recording-draft') return 'library'
   return place.kind === 'learning-settings' ? 'learning' : place.kind
 }
 function WorkspaceLink({ place, go, children, ...props }: { place: WorkspacePlace; go: (place: WorkspacePlace) => void; children: ReactNode } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>) {
@@ -62,6 +67,7 @@ export function App() {
   const repository = useMemo(() => new MaterialRepository(), [])
   const wordRepository = useMemo(() => new WordRepository(), [])
   const learningRepository = useMemo(() => new LearningRepository(), [])
+  const recordingRepository = useMemo(() => new RecordingRepository(), [])
   const workspace = useMemo(() => new LearningWorkspace({ materialRepository: repository, wordRepository, navigation: window, confirmDiscard: () => confirm('当前句子尚未保存。放弃修改并离开吗？') }), [repository, wordRepository])
   const workspaceState = useSyncExternalStore(workspace.subscribe, workspace.getState)
   const { materials, dueMaterials, words: wordEntries, currentMaterial, currentWord: wordDetail, loading: workspaceLoading, message, isImporting } = workspaceState
@@ -84,6 +90,11 @@ export function App() {
   const [currentSchedule, setCurrentSchedule] = useState<ReviewSchedule | undefined>()
   const [reviewStages, setReviewStages] = useState<import('../domain/types').ReviewStage[] | undefined>()
   const [reviewDifficultIds, setReviewDifficultIds] = useState<string[]>([])
+  const [recordingDrafts, setRecordingDrafts] = useState<RecordingDraft[]>([])
+  const [currentRecordingDraft, setCurrentRecordingDraft] = useState<RecordingDraft | null>(null)
+  const [recordingDraftAudioUrl, setRecordingDraftAudioUrl] = useState('')
+  const [recordingDraftError, setRecordingDraftError] = useState('')
+  const [deletingRecordingDraftId, setDeletingRecordingDraftId] = useState<string | null>(null)
   const sessionTracker = useMemo(() => new LearningSessionTracker(learningRepository, sessionStorage.getItem('hear-say-tab-id') ?? (() => { const id = crypto.randomUUID(); sessionStorage.setItem('hear-say-tab-id', id); return id })(), () => setSessionConflict(true)), [learningRepository])
 
   const navigate = (place: WorkspacePlace) => { void workspace.go(place) }
@@ -96,6 +107,30 @@ export function App() {
     addEventListener('focus', refreshOnFocus)
     return () => { removeEventListener('focus', refreshOnFocus); workspace.stop() }
   }, [workspace])
+  useEffect(() => {
+    const refreshDrafts = () => { void recordingRepository.listDrafts().then(setRecordingDrafts) }
+    refreshDrafts()
+    addEventListener('focus', refreshDrafts)
+    return () => removeEventListener('focus', refreshDrafts)
+  }, [recordingRepository])
+  useEffect(() => {
+    if (workspaceState.place.kind !== 'recording-draft') { setCurrentRecordingDraft(null); setRecordingDraftAudioUrl(''); setRecordingDraftError(''); return }
+    setCurrentRecordingDraft(null); setRecordingDraftAudioUrl(''); setRecordingDraftError('')
+    void recordingRepository.getDraft(workspaceState.place.draftId).then((draft) => {
+      if (!draft) { navigate({ kind: 'library' }); return }
+      setCurrentRecordingDraft(draft)
+    }).catch(() => setRecordingDraftError('无法读取这份录制草稿。请返回资料库后重试。'))
+  }, [recordingRepository, workspaceState.place])
+  useEffect(() => {
+    if (!currentRecordingDraft) return
+    let objectUrl = ''
+    setRecordingDraftAudioUrl('')
+    void recordingRepository.reconstructWav(currentRecordingDraft.sessionId, currentRecordingDraft.excludedIntervals).then((wav) => {
+      objectUrl = URL.createObjectURL(new Blob([wav.slice().buffer as ArrayBuffer], { type: 'audio/wav' }))
+      setRecordingDraftAudioUrl(objectUrl)
+    }).catch((cause) => setRecordingDraftError(cause instanceof Error && cause.message === 'Recording Session has no persisted audio' ? '这份录制草稿没有可播放的音频。它可能在录音开始前就被中断。' : '无法重建这份录音。草稿仍保留在本机，你可以返回资料库后重试。'))
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [currentRecordingDraft, recordingRepository])
   useEffect(() => {
     if (typeof browser === 'undefined') return
     void Promise.all([loadAsrSettings(), loadVocabularySettings()]).then(([asr, vocabulary]) => { setAsrSettings(asr); setVocabularySettings(vocabulary) })
@@ -202,6 +237,20 @@ export function App() {
   async function deleteMaterial(id: string) {
     await workspace.deleteMaterial(id)
   }
+  async function deleteRecordingDraft(id: string) {
+    await recordingRepository.deleteDraft(id)
+    setRecordingDrafts(await recordingRepository.listDrafts())
+    setDeletingRecordingDraftId(null)
+  }
+  async function importRecordingDraft(title: string) {
+    if (!currentRecordingDraft) return
+    const wav = await recordingRepository.reconstructWav(currentRecordingDraft.sessionId, currentRecordingDraft.excludedIntervals)
+    const file = new File([wav.slice().buffer as ArrayBuffer], `${title}.wav`, { type: 'audio/wav' })
+    await workspace.importAudio(file, currentRecordingDraft.durationSeconds, transcribeWithSettings)
+    await recordingRepository.deleteDraft(currentRecordingDraft.id)
+    setRecordingDrafts(await recordingRepository.listDrafts())
+    navigate({ kind: 'library' })
+  }
   async function toggleFavorite(id: string, value: boolean) { await workspace.setMaterialFavorite(id, value) }
   async function saveTags(id: string, tags: string[]) { await workspace.setMaterialTags(id, tags) }
   async function resetProgress(id: string) { await workspace.resetMaterialProgress(id) }
@@ -254,6 +303,8 @@ export function App() {
 
   if (wordDetail) return <><header className="global-page-header">{siteHeader}</header><WordDetail entry={wordDetail} activeTerm={activeSpokenTerm} onBack={goBack} onSpeak={(term) => void toggleWordSpeech(term)} onOpenSource={(source) => void openWordSource(source)} /></>
 
+  if (workspaceState.place.kind === 'recording-draft') return <><header className="global-page-header">{siteHeader}</header>{recordingDraftError ? <main className="recording-draft-failure"><p className="eyebrow">Recording draft</p><h2>无法打开录音</h2><p role="alert">{recordingDraftError}</p><div><button className="dialog-secondary" type="button" onClick={() => navigate({ kind: 'library' })}>返回资料库</button>{currentRecordingDraft && <button className="dialog-danger" type="button" onClick={() => setDeletingRecordingDraftId(currentRecordingDraft.id)}>删除空草稿</button>}</div>{deletingRecordingDraftId && <ConfirmDialog eyebrow="Recording draft" title="删除这份空草稿吗？" cancelLabel="保留草稿" confirmLabel="确认删除" danger onCancel={() => setDeletingRecordingDraftId(null)} onConfirm={() => { void deleteRecordingDraft(deletingRecordingDraftId).then(() => navigate({ kind: 'library' })) }}><p>草稿记录将被永久删除。它不包含可播放的录音分片。</p></ConfirmDialog>}</main> : currentRecordingDraft && recordingDraftAudioUrl ? <RecordingDraftEditor draft={currentRecordingDraft} audioUrl={recordingDraftAudioUrl} onBack={goBack} onImport={(title) => void importRecordingDraft(title)} onExclusionsChange={(intervals) => { void recordingRepository.saveExcludedIntervals(currentRecordingDraft.id, intervals).then(async () => { setCurrentRecordingDraft(await recordingRepository.getDraft(currentRecordingDraft.id) ?? null) }) }} /> : <main className="recording-draft-loading" role="status">正在读取录制草稿…</main>}</>
+
   return (
     <main className="app-shell library-page">
       <header className="app-header">
@@ -266,6 +317,8 @@ export function App() {
       {workspaceState.place.kind === 'learning' && <LearningDashboard materials={materials} due={dueMaterials} weekStats={weekStats} today={today} onReview={(id) => void openPractice(id, true)} onOpen={(id) => void openOverview(id)} />}
       {workspaceState.place.kind === 'learning-settings' && reviewPlan && <LearningSettings plan={reviewPlan} onSave={async (intervals) => { const plan = await learningRepository.createNextReviewPlan(intervals); setReviewPlan(plan); workspace.setMessage('学习设置已保存') }} />}
       {primarySection === 'library' && <section className="library-section" id="material-library">
+        <RecordingDraftList drafts={recordingDrafts} onEdit={(id) => navigate({ kind: 'recording-draft', draftId: id })} onDelete={setDeletingRecordingDraftId} />
+        {deletingRecordingDraftId && <ConfirmDialog eyebrow="Recording draft" title={`删除“${recordingDrafts.find((draft) => draft.id === deletingRecordingDraftId)?.source.title ?? '这份录音'}”吗？`} cancelLabel="保留草稿" confirmLabel="确认删除" danger onCancel={() => setDeletingRecordingDraftId(null)} onConfirm={() => void deleteRecordingDraft(deletingRecordingDraftId)}><p>录音草稿和所有分片将被永久删除，且无法恢复。已经导入的学习材料不会受到影响。</p></ConfirmDialog>}
         <div className="section-heading library-heading">
           <div><p className="eyebrow">材料库 · {materials.length} 段</p><h2>你的听说素材</h2></div>
           <AudioImportControl isImporting={isImporting} onSelectFile={(file) => void importFile(file)} />

@@ -8,7 +8,7 @@ describe('AiServiceSettings', () => {
   it('lets a learner configure transcription and vocabulary explanation independently', () => {
     const onSaveVocabulary = vi.fn()
     render(<AiServiceSettings
-      asr={{ baseUrl: 'http://localhost:8021/v1', apiKey: '', model: 'sensevoice' }}
+      asr={{ baseUrl: 'http://localhost:8021/v1', apiKey: '', model: 'sensevoice', language: 'en' }}
       vocabulary={{ baseUrl: 'https://api.deepseek.com', apiKey: '', model: 'deepseek-v4-flash' }}
       onSaveAsr={vi.fn()}
       onSaveVocabulary={onSaveVocabulary}

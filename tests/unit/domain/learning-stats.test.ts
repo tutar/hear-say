@@ -18,4 +18,10 @@ describe('learning statistics', () => {
     ])[0]
     expect(stats).toMatchObject({ totalSeconds: 120, listeningSeconds: 80, speakingSeconds: 40, categories: { blind_listen: { totalSeconds: 60, listeningSeconds: 60, speakingSeconds: 0 }, shadowing: { totalSeconds: 60, listeningSeconds: 20, speakingSeconds: 40 } } })
   })
+
+  it('ignores local slices from the obsolete schema instead of crashing the learning page', () => {
+    const obsolete = { id: 'old', sessionId: 's', materialId: 'm', startedAt: '2026-08-03T01:00:00.000Z', endedAt: '2026-08-03T01:01:00.000Z' }
+
+    expect(dailyLearningStats([obsolete as never])).toEqual([])
+  })
 })

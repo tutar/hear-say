@@ -12,6 +12,7 @@ describe('workspace routes', () => {
     ['#/materials/m1/free-listening', { kind: 'free-listening', materialId: 'm1' }],
     ['#/materials/m1/review', { kind: 'review', materialId: 'm1' }],
     ['#/materials/m1/subtitles', { kind: 'subtitles', materialId: 'm1' }],
+    ['#/recording-drafts/draft%2F1', { kind: 'recording-draft', draftId: 'draft/1' }],
     ['#/words/w1', { kind: 'word', wordId: 'w1' }],
   ] as const)('parses %s', (hash, place) => {
     expect(parseWorkspaceHash(hash)).toEqual({ place, canonicalHash: hash, issue: null })

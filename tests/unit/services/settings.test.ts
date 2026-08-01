@@ -18,8 +18,8 @@ describe('ASR settings', () => {
   })
 
   it('normalizes a trailing base URL slash before saving', async () => {
-    await saveAsrSettings({ baseUrl: 'https://asr.example/v1/', apiKey: 'secret', model: 'custom' })
-    expect(await loadAsrSettings()).toEqual({ baseUrl: 'https://asr.example/v1', apiKey: 'secret', model: 'custom' })
+    await saveAsrSettings({ baseUrl: 'https://asr.example/v1/', apiKey: 'secret', model: 'custom', language: 'auto' })
+    expect(await loadAsrSettings()).toEqual({ baseUrl: 'https://asr.example/v1', apiKey: 'secret', model: 'custom', language: 'auto' })
   })
 
   it('stores vocabulary explanation settings independently from transcription settings', async () => {

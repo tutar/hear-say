@@ -1,5 +1,14 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { FreeListeningPreferences, FreeListeningProgress, LearningSession, LearningTimeSlice, Material, ReviewPlan, ReviewSchedule, Segment, VocabularyCacheEntry, WordEntry } from '../domain/types'
+import type { RecordingDraft } from '../domain/recording-draft'
+
+export type PersistedRecordingChunk = {
+  id: string
+  sessionId: string
+  sequence: number
+  sampleRate: number
+  samples: number[]
+}
 
 export class HearSayDatabase extends Dexie {
   materials!: EntityTable<Material, 'id'>
@@ -12,6 +21,8 @@ export class HearSayDatabase extends Dexie {
   learningTimeSlices!: EntityTable<LearningTimeSlice, 'id'>
   freeListeningPreferences!: EntityTable<FreeListeningPreferences, 'id'>
   freeListeningProgress!: EntityTable<FreeListeningProgress, 'materialId'>
+  recordingChunks!: EntityTable<PersistedRecordingChunk, 'id'>
+  recordingDrafts!: EntityTable<RecordingDraft, 'id'>
 
   constructor() {
     super('hear-say')
@@ -45,6 +56,24 @@ export class HearSayDatabase extends Dexie {
       reviewPlans: 'id,&version,createdAt', reviewSchedules: 'id,&materialId,nextReviewAt,status',
       learningSessions: 'id,materialId,status,ownerTabId,startedAt', learningTimeSlices: 'id,sessionId,materialId,startedAt',
       freeListeningPreferences: 'id', freeListeningProgress: 'materialId,updatedAt',
+    })
+    this.version(6).stores({
+      materials: 'id,status,nextReviewAt,updatedAt,isFavorite,*tags',
+      segments: 'id,materialId,[materialId+order],isDifficult',
+      wordEntries: 'id,&normalizedTerm,lastSeenAt', wordLookups: 'key,updatedAt',
+      reviewPlans: 'id,&version,createdAt', reviewSchedules: 'id,&materialId,nextReviewAt,status',
+      learningSessions: 'id,materialId,status,ownerTabId,startedAt', learningTimeSlices: 'id,sessionId,materialId,startedAt',
+      freeListeningPreferences: 'id', freeListeningProgress: 'materialId,updatedAt',
+      recordingChunks: 'id,sessionId,[sessionId+sequence]',
+    })
+    this.version(7).stores({
+      materials: 'id,status,nextReviewAt,updatedAt,isFavorite,*tags',
+      segments: 'id,materialId,[materialId+order],isDifficult',
+      wordEntries: 'id,&normalizedTerm,lastSeenAt', wordLookups: 'key,updatedAt',
+      reviewPlans: 'id,&version,createdAt', reviewSchedules: 'id,&materialId,nextReviewAt,status',
+      learningSessions: 'id,materialId,status,ownerTabId,startedAt', learningTimeSlices: 'id,sessionId,materialId,startedAt',
+      freeListeningPreferences: 'id', freeListeningProgress: 'materialId,updatedAt',
+      recordingChunks: 'id,sessionId,[sessionId+sequence]', recordingDrafts: 'id,sessionId,state,updatedAt',
     })
   }
 }

@@ -16,8 +16,10 @@ function localDateKey(date: Date): string {
 export function dailyLearningStats(slices: LearningTimeSlice[]): DailyLearningStats[] {
   const totals = new Map<string, DailyLearningStats>()
   for (const slice of slices) {
+    if (!TRAINING_CATEGORIES.includes(slice.trainingCategory) || (slice.mode !== 'listening' && slice.mode !== 'speaking')) continue
     let cursor = new Date(slice.startedAt)
     const end = new Date(slice.endedAt)
+    if (!Number.isFinite(cursor.getTime()) || !Number.isFinite(end.getTime()) || cursor >= end) continue
     while (cursor < end) {
       const midnight = new Date(cursor); midnight.setHours(24, 0, 0, 0)
       const partEnd = midnight < end ? midnight : end

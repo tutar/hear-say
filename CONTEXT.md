@@ -24,6 +24,26 @@ _Avoid_: Bulk subtitle draft, multi-row edit
 An in-progress attempt to turn one material's audio into timed sentences. It continues across Workspace Place changes, remains visible when revisited, and cannot run concurrently twice for the same material.
 _Avoid_: Page loading, import spinner
 
+**Tab Recording**:
+User-initiated capture of the sound currently produced by one browser tab for personal learning. It is source-agnostic and is neither a video download nor background monitoring.
+_Avoid_: YouTube import, video download, audio extraction
+
+**Recording Session**:
+The single active attempt to create one Tab Recording from one fixed source tab. Pausing excludes sound without ending or splitting the session; completing or interrupting it produces one Recording Draft.
+_Avoid_: Recording chunk, material, capture tab
+
+**Recording Draft**:
+A completed or interrupted Tab Recording retained locally until the learner edits, imports, or deletes it. It is not a learning Material and is never transcribed before import confirmation.
+_Avoid_: Pending material, failed transcription, temporary file
+
+**Excluded Interval**:
+A non-destructive time range omitted from a Recording Draft's final audio, commonly an advertisement or accidental capture. Multiple Excluded Intervals still produce one continuous imported Material.
+_Avoid_: Deleted recording, separate clip, silence
+
+**Source Reference**:
+Local metadata identifying the page from which a Tab Recording originated, including its title, URL, site, and recording time. It belongs only to a learner-confirmed recording and is never sent to transcription services.
+_Avoid_: Browsing history, ASR metadata
+
 **Learning Session**:
 A resumable, time-bounded learning activity for one material, used consistently for both the First Round and a Review. Its effective duration accumulates while the learning place is visible, regardless of audio playback, pauses while hidden, and ends when the learner explicitly leaves the learning place. Only one Learning Session may be active at a time; an ended session is immutable and is deleted only with its material.
 _Avoid_: Practice Session, study page

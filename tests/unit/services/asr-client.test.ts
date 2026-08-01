@@ -9,7 +9,7 @@ const { transcribeAudio } = await import('@/services/asr-client')
 
 const input = {
   audioBlob: new Blob(['audio'], { type: 'audio/wav' }), filename: 'clip.wav', materialId: 'm1', durationSeconds: 3,
-  settings: { baseUrl: 'http://localhost:8021/v1', apiKey: '', model: 'sensevoice' },
+  settings: { baseUrl: 'http://localhost:8021/v1', apiKey: '', model: 'sensevoice', language: 'en' as const },
 }
 
 describe('ASR client', () => {
@@ -24,6 +24,12 @@ describe('ASR client', () => {
     expect(result[0]).toMatchObject({ text: 'Hello', materialId: 'm1' })
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8021/v1/audio/transcriptions')
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST' })
+    expect((fetchMock.mock.calls[0][1].body as FormData).get('language')).toBe('en')
+  })
+
+  it('omits the language hint when automatic detection is selected', async () => {
+    await transcribeAudio({ ...input, settings: { ...input.settings, language: 'auto' } })
+    expect((fetchMock.mock.calls[0][1].body as FormData).has('language')).toBe(false)
   })
 
   it('does not request audio when the learner declines the endpoint permission', async () => {

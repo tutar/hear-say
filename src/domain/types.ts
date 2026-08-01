@@ -116,7 +116,8 @@ export type Material = {
   updatedAt: string
 }
 
-export type AsrSettings = { baseUrl: string; apiKey: string; model: string }
+export type AsrLanguage = 'en' | 'auto'
+export type AsrSettings = { baseUrl: string; apiKey: string; model: string; language: AsrLanguage }
 
 export type VocabularySettings = { baseUrl: string; apiKey: string; model: string }
 export type WordSource =

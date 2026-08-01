@@ -1,8 +1,12 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { App } from '@/app/App'
+import { resetDatabaseForTest } from '@/db/database'
+import { RecordingRepository } from '@/db/recording-repository'
 
 describe('App', () => {
+  beforeEach(async () => { await resetDatabaseForTest(); history.replaceState(null, '', '#/learning') })
+  afterEach(cleanup)
   it('renders the private audio-learning entrypoint', async () => {
     render(<App />)
 
@@ -27,5 +31,15 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('link', { name: '单词本' }))
     expect(screen.getByRole('heading', { name: '单词本' })).toBeInTheDocument()
     expect(screen.getByText('还没有积累单词')).toBeInTheDocument()
+  })
+
+  it('shows a recoverable error instead of rejecting when a recording draft has no persisted audio', async () => {
+    await new RecordingRepository().saveDraft({ id: 'empty-draft', sessionId: 'empty-draft', state: 'interrupted', source: { title: 'Empty recording', url: 'https://example.com', site: 'example.com', recordedAt: '2026-08-01T10:00:00.000Z' }, durationSeconds: 0, sizeBytes: 0, excludedIntervals: [], createdAt: '2026-08-01T10:01:00.000Z', updatedAt: '2026-08-01T10:01:00.000Z' })
+    history.replaceState(null, '', '#/recording-drafts/empty-draft')
+
+    render(<App />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('这份录制草稿没有可播放的音频')
+    expect(screen.queryByText('正在读取录制草稿…')).not.toBeInTheDocument()
   })
 })

@@ -27,6 +27,7 @@ export async function transcribeAudio(input: TranscriptionInput): Promise<Segmen
   body.append('file', input.audioBlob, input.filename)
   body.append('model', input.settings.model)
   body.append('response_format', 'verbose_json')
+  if (input.settings.language !== 'auto') body.append('language', input.settings.language)
   const baseUrl = input.settings.baseUrl.replace(/\/$/, '')
   const headers = input.settings.apiKey ? { Authorization: `Bearer ${input.settings.apiKey}` } : undefined
 
