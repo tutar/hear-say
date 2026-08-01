@@ -2,63 +2,136 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A local-first Chrome extension that turns real English audio into a complete listening and speaking loop: listen, inspect, shadow, and speak. Contextual vocabulary can be collected deliberately from web selections and intensive-listening sentences.
+Turn the English you encounter online into material you can truly understand—and say out loud.
 
-## Requirements
+> **Early Preview** — Hear & Say is under active development and is currently installed as an unpacked Chrome extension.
 
-- Node.js 24 and the pnpm version declared by the project through Corepack
-- Chrome 114 or later
-- An OpenAI-compatible speech-to-text endpoint; the default is local FunASR at `http://localhost:8021/v1` using the `sensevoice` model
-- Optional DeepSeek API access for contextual vocabulary explanations
+[Try the latest release](https://github.com/tutar/hear-say/releases) · [How it works](#how-it-works) · [Contributing](CONTRIBUTING.md)
 
-## Develop and load the extension
+![Hear & Say learning dashboard](docs/images/learning-home.png)
 
-```bash
-corepack pnpm install
-corepack pnpm dev
-```
+## What is Hear & Say?
 
-For a production build:
+Hear & Say is a local-first Chrome extension for deliberate English listening and speaking practice. It turns audio from your browser—or an audio file you already have—into a guided loop of intensive listening, shadowing, blind listening, retelling, and review.
 
-```bash
-corepack pnpm build
-```
+It also connects the words you meet while browsing to the same learning workspace: select a word or short phrase, request a contextual explanation, hear its American English pronunciation, and add it to your wordbook when it is worth keeping.
 
-Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `.output/chrome-mv3`. The Hear & Say toolbar icon opens the learning experience in a regular browser tab.
+## Why build it?
 
-## Install a released version
+English learners do not lack players, translation tools, or study methods. The problem is that these tools are disconnected: useful moments in a video are difficult to turn into practice material, while words encountered on the web rarely make it into a learning loop.
 
-Download `hear-say-vX.Y.Z-chrome.zip` from the repository's [GitHub Releases](https://github.com/tutar/hear-say/releases), extract it, and load the extracted directory from `chrome://extensions` using **Load unpacked**.
-
-Release source archives generated automatically by GitHub are source code, not ready-to-load extension packages.
-
-## Configure AI services
-
-Open **AI Services** from the avatar menu to configure transcription and vocabulary explanations. The default transcription settings are:
+Hear & Say connects those steps without asking you to leave the browser:
 
 ```text
-Base URL: http://localhost:8021/v1
-Model: sensevoice
+Browser content → learning material → listening and speaking practice → vocabulary → review
 ```
 
-Chrome asks for permission before audio is uploaded to a newly configured ASR host. If transcription fails, the material and original audio remain available for retrying or recovery by importing SRT/VTT subtitles.
+## How it works
 
-Selecting up to eight English words on a regular web page or in intensive listening shows a Translate action. Only after that action is used are the selection and its sentence sent to the configured DeepSeek-compatible service. A vocabulary card is stored only after **+ Vocabulary** is selected.
+1. Import a local audio file or deliberately record audio from the browser tab you choose.
+2. Send the audio to your configured transcription service, then review the resulting sentence timeline.
+3. Complete the first learning round: intensive listening → difficult-sentence shadowing → full-audio blind listening → paragraph retelling.
+4. Return for scheduled reviews: difficult-sentence practice when you have saved difficult sentences → blind listening → retelling.
+5. Use Free Listening whenever you want to leave the guided flow and control the whole recording or individual sentences yourself.
 
-## Data and credential boundaries
+## Features
 
-- Audio, sentence timelines, difficult-sentence marks, vocabulary, and progress remain in the extension's local IndexedDB.
-- API keys remain in extension-local storage and are never printed in the UI, errors, or logs.
-- Audio is sent only to the ASR endpoint explicitly configured and authorized by the user.
-- The web content script reacts to deliberate selections; it does not scan pages or inspect editable fields.
-- Vocabulary requests contain the selected text and its sentence, not the page URL, title, audio name, or full page.
-- The `tts` permission is used only to pronounce a word or phrase the user explicitly plays.
+### Bring browser audio into your library
 
-## Verify
+Record the sound from a tab you explicitly choose instead of relying on platform-specific download APIs. The flow has been verified with YouTube and Bilibili and is designed for audio playing in regular browser tabs. DRM-protected content and incognito tabs are not supported.
 
-```bash
-corepack pnpm test
-corepack pnpm build
-```
+Pause and resume without splitting the material, keep listening while recording, remove unwanted ranges such as advertisements or mistakes, then import the retained audio as one material.
 
-Unit and component tests live in `tests/`; Playwright extension tests live in `e2e/` and use local FunASR. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, test boundaries, contribution rules, and the release process.
+![Recording audio from a YouTube tab in the Hear & Say side panel](docs/images/tab-audio-recording.png)
+
+![A completed browser recording waiting above the material library](docs/images/recording-draft-library.png)
+
+### Practise through a complete listening-and-speaking loop
+
+Work sentence by sentence with playback speed, repetition, translation, sentence analysis, and semantic-group overlays. Save a sentence when it is genuinely difficult; saved sentences feed later difficult-sentence practice instead of being selected automatically.
+
+![Difficult-sentence practice with contextual analysis](docs/images/difficult-sentence-practice.png)
+
+### Turn selections into useful vocabulary
+
+Select up to eight English words on a regular web page or inside intensive listening. Hear & Say asks for a contextual explanation only when you choose **Translate**, and stores a card only when you choose **+ Vocabulary**.
+
+![A contextual explanation for a selected phrase with an add-to-wordbook action](docs/images/selection-to-wordbook.png)
+
+### Continue, review, or listen freely
+
+- See first-round work and every generated review round in one place.
+- Track blind listening, intensive listening, shadowing, retelling, and difficult-sentence practice by day and week.
+- Inspect listening and speaking time separately for shadowing and retelling.
+- Use Free Listening in sentence or list mode, with playback position saved per material and playback preferences shared across materials.
+
+## Why a Chrome extension?
+
+[Echo Loop](https://github.com/echo-loop/Echo-Loop) inspired the structured listening-and-speaking workflow in Hear & Say. Hear & Say explores a different product surface rather than acting as a browser port:
+
+| Question | Echo Loop inspiration | Hear & Say focus |
+| --- | --- | --- |
+| Where does learning happen? | A dedicated learning experience | Inside the browser where learning and work already happen |
+| How does material enter the loop? | Bring meaningful audio into structured practice | Add local audio or capture sound from a user-selected browser tab |
+| What happens to words found online? | — | Explain deliberate text selections in context and add chosen items to a wordbook |
+
+Hear & Say is an independent, unofficial project. It is not a fork, browser port, or official Echo Loop project, and it is not affiliated with or endorsed by Echo Loop.
+
+## Try it
+
+Hear & Say is currently distributed through GitHub Releases:
+
+1. Download `hear-say-vX.Y.Z-chrome.zip` from the latest [GitHub Release](https://github.com/tutar/hear-say/releases). GitHub's automatic “Source code” archives are not loadable extension packages.
+2. Extract the ZIP, open `chrome://extensions`, and enable **Developer mode**.
+3. Choose **Load unpacked** and select the extracted directory.
+4. Open **AI Services** from the Hear & Say avatar menu and configure transcription and vocabulary explanation.
+
+The transcription endpoint must support `POST /v1/audio/transcriptions`, timestamped `verbose_json` responses, and requests from a Chrome extension. If transcription fails, Hear & Say preserves the material and original audio so you can retry or import SRT/VTT subtitles.
+
+## Local-first by design
+
+- Materials, recordings, sentence timelines, difficult-sentence marks, vocabulary, progress, and settings stay in the extension's local browser storage.
+- Audio is sent only to the transcription endpoint you configure and authorize.
+- A vocabulary request contains the selected text and its sentence—not the page URL, page title, audio name, or full page.
+- API keys remain in extension-local storage and are not intentionally included in the interface, errors, or logs.
+- Hear & Say does not operate a hosted backend.
+
+Uninstalling the extension or clearing its browser data may permanently remove locally stored learning data. Back up anything you cannot afford to lose.
+
+## Roadmap
+
+### Available now
+
+- Local audio import and user-initiated browser-tab recording
+- A structured first learning round, generated review rounds, and Free Listening
+- Contextual selection translation, Chrome TTS pronunciation, and a local wordbook
+- Daily and weekly listening-and-speaking statistics
+
+### Improving
+
+- Recording stability, interruption recovery, and storage feedback
+- Validation across more media websites
+- Recording and material editing workflows
+- Compatibility with more OpenAI-compatible transcription services
+
+### Exploring
+
+- Chrome Web Store distribution
+- Cross-device synchronization
+- Support for more browsers
+
+“Exploring” describes directions under consideration, not committed features or release dates.
+
+## Acknowledgements
+
+Hear & Say was inspired by [Echo Loop](https://github.com/echo-loop/Echo-Loop) and its structured approach to intensive listening and speaking practice. Thank you to its creators and contributors for making that work open.
+
+Hear & Say is built with open-source projects including [WXT](https://wxt.dev/), [React](https://react.dev/), and [Dexie.js](https://dexie.org/).
+
+## Development
+
+Development setup, architecture boundaries, testing, contribution rules, and the release process live in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+Hear & Say is licensed under the [Apache License 2.0](LICENSE).

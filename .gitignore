@@ -2,7 +2,6 @@ node_modules/
 .output/
 .wxt/
 coverage/
-docs/*.png
 docs/output.wav
 docs/english-learning-agent
 playwright-report/
