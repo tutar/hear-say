@@ -3,9 +3,9 @@ import { currentLearningWeek, dailyLearningStats } from '@/domain/learning-stats
 
 describe('learning statistics', () => {
   it('splits effective time at local midnight and derives Monday-based weeks', () => {
-    const stats = dailyLearningStats([{ id: '1', sessionId: 's', materialId: 'm', trainingCategory: 'retelling', mode: 'speaking', startedAt: '2026-08-02T15:59:30.000Z', endedAt: '2026-08-02T16:00:30.000Z' }])
+    const stats = dailyLearningStats([{ id: '1', sessionId: 's', materialId: 'm', trainingCategory: 'retelling', mode: 'speaking', startedAt: new Date(2026, 7, 2, 23, 59, 30).toISOString(), endedAt: new Date(2026, 7, 3, 0, 0, 30).toISOString() }])
     expect(stats.map((item) => [item.date, item.speakingSeconds])).toEqual([['2026-08-02', 30], ['2026-08-03', 30]])
-    const week = currentLearningWeek(stats, new Date('2026-08-03T04:00:00.000Z'))
+    const week = currentLearningWeek(stats, new Date(2026, 7, 3, 12))
     expect(week).toHaveLength(7)
     expect(week[0].date).toBe('2026-08-03')
   })
