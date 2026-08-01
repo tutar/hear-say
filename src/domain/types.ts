@@ -1,6 +1,62 @@
 export type MaterialStatus = 'pending_transcription' | 'ready' | 'transcription_failed'
 
 export type FirstRoundStage = 'blind_listen' | 'intensive_listen' | 'shadowing' | 'retelling' | 'complete'
+export type LearningStage = Exclude<FirstRoundStage, 'complete'>
+export type LearningSessionPurpose = 'first_round' | 'review'
+export type LearningTimeCategory = 'listening' | 'speaking'
+
+export type IntensiveRepetitionProgress = {
+  completed: number
+  skipped: boolean
+}
+
+export type LearningSession = {
+  id: string
+  materialId: string
+  purpose: LearningSessionPurpose
+  reviewScheduleId: string | null
+  reviewOccurrence: number | null
+  stage: LearningStage
+  segmentIndex: number
+  playbackRate: number
+  loopSegment: boolean
+  intensiveProgress: Record<string, IntensiveRepetitionProgress>
+  retellKeywords: string[]
+  status: 'active' | 'completed' | 'ended'
+  ownerTabId: string
+  startedAt: string
+  lastCheckpointAt: string
+  endedAt: string | null
+}
+
+export type LearningTimeSlice = {
+  id: string
+  sessionId: string
+  materialId: string
+  category: LearningTimeCategory
+  startedAt: string
+  endedAt: string
+}
+
+export type ReviewInterval = { value: number; unit: 'hour' | 'day' }
+export type ReviewPlan = {
+  id: string
+  version: number
+  intervals: ReviewInterval[]
+  createdAt: string
+}
+export type ReviewSchedule = {
+  id: string
+  materialId: string
+  planId: string
+  planVersion: number
+  intervals: ReviewInterval[]
+  completedCount: number
+  nextReviewAt: string | null
+  status: 'active' | 'completed'
+  createdAt: string
+  updatedAt: string
+}
 
 export type Segment = {
   id: string

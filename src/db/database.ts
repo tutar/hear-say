@@ -1,11 +1,15 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Material, Segment, VocabularyCacheEntry, WordEntry } from '../domain/types'
+import type { LearningSession, LearningTimeSlice, Material, ReviewPlan, ReviewSchedule, Segment, VocabularyCacheEntry, WordEntry } from '../domain/types'
 
 export class HearSayDatabase extends Dexie {
   materials!: EntityTable<Material, 'id'>
   segments!: EntityTable<Segment, 'id'>
   wordEntries!: EntityTable<WordEntry, 'id'>
   wordLookups!: EntityTable<VocabularyCacheEntry, 'key'>
+  reviewPlans!: EntityTable<ReviewPlan, 'id'>
+  reviewSchedules!: EntityTable<ReviewSchedule, 'id'>
+  learningSessions!: EntityTable<LearningSession, 'id'>
+  learningTimeSlices!: EntityTable<LearningTimeSlice, 'id'>
 
   constructor() {
     super('hear-say')
@@ -24,6 +28,13 @@ export class HearSayDatabase extends Dexie {
       segments: 'id,materialId,[materialId+order],isDifficult',
       wordEntries: 'id,&normalizedTerm,lastSeenAt',
       wordLookups: 'key,updatedAt',
+    })
+    this.version(4).stores({
+      materials: 'id,status,nextReviewAt,updatedAt,isFavorite,*tags',
+      segments: 'id,materialId,[materialId+order],isDifficult',
+      wordEntries: 'id,&normalizedTerm,lastSeenAt', wordLookups: 'key,updatedAt',
+      reviewPlans: 'id,&version,createdAt', reviewSchedules: 'id,&materialId,nextReviewAt,status',
+      learningSessions: 'id,materialId,status,ownerTabId,startedAt', learningTimeSlices: 'id,sessionId,materialId,startedAt',
     })
   }
 }

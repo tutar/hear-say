@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from 'react'
 import { MaterialRepository } from '../db/material-repository'
 import { WordRepository } from '../db/word-repository'
-import type { AsrSettings, Material, VocabularySettings, WordSource } from '../domain/types'
+import { LearningRepository } from '../db/learning-repository'
+import type { AsrSettings, Material, ReviewPlan, VocabularySettings, WordSource } from '../domain/types'
+import { currentLearningWeek, dailyLearningStats, type DailyLearningStats } from '../domain/learning-stats'
+import { completeScheduledReview } from '../domain/review-plan'
 import { AiServiceSettings } from '../features/library/AiServiceSettings'
 import { AudioImportControl } from '../features/library/AudioImportControl'
 import type { Transcribe } from '../features/library/library-controller'
@@ -12,9 +15,11 @@ import { toExportData } from '../features/library/material-export'
 import { PracticeFlow } from '../features/practice/PracticeFlow'
 import { MaterialOverview } from '../features/practice/MaterialOverview'
 import { LearningDashboard } from '../features/practice/LearningDashboard'
+import { LearningSettings } from '../features/practice/LearningSettings'
 import { transcribeAudio } from '../services/asr-client'
 import { createDeepSeekExplainer } from '../services/deepseek-client'
 import { WordSpeaker } from '../services/word-speaker'
+import { LearningSessionTracker } from '../services/learning-session-tracker'
 import { VocabularyService, type VocabularyLookup, type VocabularySelection } from '../services/vocabulary-service'
 import { DEFAULT_ASR_SETTINGS, DEFAULT_VOCABULARY_SETTINGS, loadAsrSettings, loadVocabularySettings, saveAsrSettings, saveVocabularySettings } from '../services/settings'
 import { LearningWorkspace } from './learning-workspace'
@@ -24,7 +29,7 @@ type PrimarySection = 'learning' | 'library' | 'words' | 'settings'
 const primarySectionFor = (place: WorkspacePlace): PrimarySection => {
   if (place.kind === 'word') return 'words'
   if (place.kind === 'material' || place.kind === 'practice' || place.kind === 'review' || place.kind === 'subtitles') return 'library'
-  return place.kind
+  return place.kind === 'learning-settings' ? 'learning' : place.kind
 }
 function WorkspaceLink({ place, go, children, ...props }: { place: WorkspacePlace; go: (place: WorkspacePlace) => void; children: ReactNode } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>) {
   const navigate = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -53,6 +58,7 @@ async function readAudioDuration(file: File): Promise<number | null> {
 export function App() {
   const repository = useMemo(() => new MaterialRepository(), [])
   const wordRepository = useMemo(() => new WordRepository(), [])
+  const learningRepository = useMemo(() => new LearningRepository(), [])
   const workspace = useMemo(() => new LearningWorkspace({ materialRepository: repository, wordRepository, navigation: window, confirmDiscard: () => confirm('当前句子尚未保存。放弃修改并离开吗？') }), [repository, wordRepository])
   const workspaceState = useSyncExternalStore(workspace.subscribe, workspace.getState)
   const { materials, dueMaterials, words: wordEntries, currentMaterial, currentWord: wordDetail, loading: workspaceLoading, message, isImporting } = workspaceState
@@ -66,6 +72,10 @@ export function App() {
   const [asrSettings, setAsrSettings] = useState<AsrSettings>(DEFAULT_ASR_SETTINGS)
   const [vocabularySettings, setVocabularySettings] = useState<VocabularySettings>(DEFAULT_VOCABULARY_SETTINGS)
   const [profileMenu, setProfileMenu] = useState(false)
+  const [reviewPlan, setReviewPlan] = useState<ReviewPlan | null>(null)
+  const [weekStats, setWeekStats] = useState<DailyLearningStats[]>([])
+  const [sessionConflict, setSessionConflict] = useState(false)
+  const sessionTracker = useMemo(() => new LearningSessionTracker(learningRepository, sessionStorage.getItem('hear-say-tab-id') ?? (() => { const id = crypto.randomUUID(); sessionStorage.setItem('hear-say-tab-id', id); return id })(), () => setSessionConflict(true)), [learningRepository])
 
   const navigate = (place: WorkspacePlace) => { void workspace.go(place) }
   const goBack = () => history.back()
@@ -81,6 +91,18 @@ export function App() {
     if (typeof browser === 'undefined') return
     void Promise.all([loadAsrSettings(), loadVocabularySettings()]).then(([asr, vocabulary]) => { setAsrSettings(asr); setVocabularySettings(vocabulary) })
   }, [])
+  useEffect(() => { void Promise.all([learningRepository.currentReviewPlan(), learningRepository.timeSlices()]).then(([plan, slices]) => { setReviewPlan(plan); setWeekStats(currentLearningWeek(dailyLearningStats(slices), new Date())) }) }, [learningRepository, workspaceState.place])
+  useEffect(() => {
+    if (!active || subtitleEditor) return
+    let disposed = false
+    const begin = async () => { const result = await sessionTracker.start(active.id, isReview ? 'review' : 'first_round', isReview || active.firstRoundStage === 'complete' ? 'blind_listen' : active.firstRoundStage, new Date().toISOString()); if (!disposed) setSessionConflict(result.kind === 'owned_elsewhere') }
+    void begin()
+    const checkpoint = window.setInterval(() => { void sessionTracker.dispatch({ type: 'checkpoint', at: new Date().toISOString() }) }, 30_000)
+    const visibility = () => { void sessionTracker.dispatch({ type: 'visibility_changed', visible: !document.hidden, at: new Date().toISOString() }) }
+    document.addEventListener('visibilitychange', visibility)
+    return () => { disposed = true; clearInterval(checkpoint); document.removeEventListener('visibilitychange', visibility); void sessionTracker.end(new Date().toISOString()) }
+  }, [active?.id, isReview, sessionTracker, subtitleEditor])
+  useEffect(() => () => sessionTracker.close(), [sessionTracker])
 
   async function importFile(file: File) {
     await workspace.importAudio(file, await readAudioDuration(file), transcribeWithSettings)
@@ -160,7 +182,11 @@ export function App() {
   async function manageSubtitles(id: string) { navigate({ kind: 'subtitles', materialId: id }) }
 
   async function persistPractice(material: Material) {
-    await workspace.savePractice(material)
+    await sessionTracker.dispatch({ type: 'stage_completed', at: new Date().toISOString() })
+    if (material.firstRoundStage === 'complete') {
+      const schedule = await learningRepository.scheduleMaterial(material.id, material.updatedAt)
+      await workspace.savePractice({ ...material, nextReviewAt: schedule.nextReviewAt, reviewStep: schedule.completedCount })
+    } else await workspace.savePractice(material)
   }
 
   async function persistSegments(segments: import('../domain/types').Segment[]) {
@@ -169,15 +195,22 @@ export function App() {
   }
 
   async function completeReview(material: Material) {
-    await workspace.completeReview(material)
+    const schedule = await learningRepository.scheduleForMaterial(material.id)
+    if (!schedule) return
+    const updated = completeScheduledReview(schedule, new Date().toISOString())
+    await learningRepository.saveSchedule(updated)
+    await workspace.savePractice({ ...material, nextReviewAt: updated.nextReviewAt, reviewStep: updated.completedCount })
+    navigate({ kind: 'material', materialId: material.id })
   }
 
+  const today = (() => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` })()
   const siteHeader = <div className="brand-lockup">
     <div className="brand-tools"><WorkspaceLink className="brand-home" aria-label="返回学习首页" place={{ kind: 'learning' }} go={navigate}><span className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></span><span><small>Private listening desk</small><h1>Hear &amp; Say</h1></span></WorkspaceLink></div>
-    <div className="header-actions">{workspaceState.transcriptionTasks.size > 0 && <WorkspaceLink className="transcription-indicator" place={{ kind: 'library' }} go={navigate}>正在转写 {workspaceState.transcriptionTasks.size} 个材料</WorkspaceLink>}<nav className="primary-navigation" aria-label="主菜单"><WorkspaceLink className={primarySection === 'learning' ? 'active' : ''} place={{ kind: 'learning' }} go={navigate}>学习</WorkspaceLink><WorkspaceLink className={primarySection === 'library' ? 'active' : ''} place={{ kind: 'library' }} go={navigate}>资料库</WorkspaceLink><WorkspaceLink className={primarySection === 'words' ? 'active' : ''} place={{ kind: 'words' }} go={navigate}>单词本</WorkspaceLink></nav><div className="profile-control" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setProfileMenu(false) }}><button className="avatar-button" type="button" aria-label="打开个人菜单" aria-expanded={profileMenu} onClick={() => setProfileMenu(!profileMenu)}><span aria-hidden="true">HS</span></button>{profileMenu && <div className="profile-menu" role="menu"><div><strong>Hear &amp; Say</strong><small>所有数据保存在本机</small></div><WorkspaceLink role="menuitem" place={{ kind: 'settings' }} go={navigate} onClick={() => setProfileMenu(false)}>AI 服务</WorkspaceLink><WorkspaceLink role="menuitem" place={{ kind: 'library' }} go={navigate} onClick={() => setProfileMenu(false)}>管理资料</WorkspaceLink></div>}</div></div>
+    <div className="header-actions">{workspaceState.transcriptionTasks.size > 0 && <WorkspaceLink className="transcription-indicator" place={{ kind: 'library' }} go={navigate}>正在转写 {workspaceState.transcriptionTasks.size} 个材料</WorkspaceLink>}<nav className="primary-navigation" aria-label="主菜单"><WorkspaceLink className={primarySection === 'learning' ? 'active' : ''} place={{ kind: 'learning' }} go={navigate}>学习{dueMaterials.length > 0 && <sup>{dueMaterials.length}</sup>}</WorkspaceLink><WorkspaceLink className={primarySection === 'library' ? 'active' : ''} place={{ kind: 'library' }} go={navigate}>资料库</WorkspaceLink><WorkspaceLink className={primarySection === 'words' ? 'active' : ''} place={{ kind: 'words' }} go={navigate}>单词本</WorkspaceLink></nav><div className="profile-control" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setProfileMenu(false) }}><button className="avatar-button" type="button" aria-label="打开个人菜单" aria-expanded={profileMenu} onClick={() => setProfileMenu(!profileMenu)}><span aria-hidden="true">HS</span></button>{profileMenu && <div className="profile-menu" role="menu"><div><strong>Hear &amp; Say</strong><small>所有数据保存在本机</small></div><WorkspaceLink role="menuitem" place={{ kind: 'settings' }} go={navigate} onClick={() => setProfileMenu(false)}>AI 服务</WorkspaceLink><WorkspaceLink role="menuitem" place={{ kind: 'learning-settings' }} go={navigate} onClick={() => setProfileMenu(false)}>学习设置</WorkspaceLink><WorkspaceLink role="menuitem" place={{ kind: 'library' }} go={navigate} onClick={() => setProfileMenu(false)}>管理资料</WorkspaceLink></div>}</div></div>
   </div>
 
   if (active) {
+    if (sessionConflict && !subtitleEditor) return <><header className="global-page-header">{siteHeader}</header><main className="session-conflict"><p className="eyebrow">Learning session</p><h2>这个学习过程正在另一个页面中进行</h2><p>为避免重复计时，这里暂时保持只读。你可以把控制权转移到当前页面。</p><button className="primary-action" type="button" onClick={async () => { await sessionTracker.start(active.id, isReview ? 'review' : 'first_round', isReview || active.firstRoundStage === 'complete' ? 'blind_listen' : active.firstRoundStage, new Date().toISOString(), true); setSessionConflict(false) }}>在这里继续</button></main></>
     if (!subtitleEditor && active.firstRoundStage === 'intensive_listen') return <><header className="global-page-header">{siteHeader}</header><PracticeFlow material={active} segments={active.segments} navigation={<span />} onExit={goBack} onComplete={(material) => void persistPractice(material)} onSegmentsSaved={persistSegments} onSentenceEditChange={workspace.setSentenceEditActive} onVocabularyLookup={lookupSelectedVocabulary} onVocabularyAdd={addSelectedVocabulary} onVocabularySpeak={(term) => void toggleWordSpeech(term)} onVocabularyOpenSettings={() => openSection('settings')} /></>
     return <main className="app-shell practice-page"><header className="app-header">{siteHeader}</header><header className="practice-header"><p className="eyebrow">{subtitleEditor ? '管理字幕' : '正在练习'}</p><h1>{active.title}</h1></header><PracticeFlow material={active} segments={active.segments} editorOnly={subtitleEditor} navigation={<span />} onExit={goBack} onComplete={(material) => void persistPractice(material)} onSegmentsSaved={persistSegments} onSentenceEditChange={workspace.setSentenceEditActive} onCompleteReview={isReview ? (material) => void completeReview(material) : undefined} onVocabularyLookup={lookupSelectedVocabulary} onVocabularyAdd={addSelectedVocabulary} onVocabularySpeak={(term) => void toggleWordSpeech(term)} /></main>
   }
@@ -197,7 +230,8 @@ export function App() {
           <div className="stage-rail" aria-label="学习路径"><span>听</span><i /><span>看</span><i /><span>跟</span><i /><span>说</span></div>
         </div>}
       </header>
-      {primarySection === 'learning' && <LearningDashboard materials={materials} due={dueMaterials} onReview={(id) => void openPractice(id, true)} onOpen={(id) => void openOverview(id)} />}
+      {workspaceState.place.kind === 'learning' && <LearningDashboard materials={materials} due={dueMaterials} weekStats={weekStats} today={today} onReview={(id) => void openPractice(id, true)} onOpen={(id) => void openOverview(id)} />}
+      {workspaceState.place.kind === 'learning-settings' && reviewPlan && <LearningSettings plan={reviewPlan} onSave={async (intervals) => { const plan = await learningRepository.createNextReviewPlan(intervals); setReviewPlan(plan); workspace.setMessage('学习设置已保存') }} />}
       {primarySection === 'library' && <section className="library-section" id="material-library">
         <div className="section-heading library-heading">
           <div><p className="eyebrow">材料库 · {materials.length} 段</p><h2>你的听说素材</h2></div>

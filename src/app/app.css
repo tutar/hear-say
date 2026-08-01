@@ -140,6 +140,17 @@ h3 { font-weight: 600; letter-spacing: -.01em; }
 .learning-summary small { grid-column: 1 / -1; color: #71817b; }
 .learning-summary strong { color: #173e36; font-size: 2rem; }
 .learning-summary span { color: #84928d; font-size: .78rem; }
+.primary-navigation sup { display: inline-grid; place-items: center; min-width: 1.1rem; height: 1.1rem; margin-left: .3rem; padding: 0 .25rem; border-radius: 1rem; background: #b45c3f; color: #fff; font-size: .65rem; }
+.time-summary { grid-template-columns: repeat(4, 1fr); margin-bottom: 1rem; }
+.time-summary strong { font-size: 1.15rem; }
+.week-chart { display: grid; grid-template-columns: repeat(7, 1fr); align-items: end; gap: .6rem; height: 8rem; margin: 0 0 3.5rem; padding: 1rem 1.25rem .6rem; border: 1px solid #dce4e0; border-radius: .9rem; background: #fff; }
+.week-chart > div { display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: end; height: 100%; gap: .35rem; color: #87958f; font-size: .7rem; }
+.week-chart i { display: block; width: min(2rem, 65%); min-height: 1px; border-radius: .3rem .3rem .1rem .1rem; background: #9db9ae; }
+.week-chart .today i { background: #b45c3f; }.week-chart .today span { color: #173e36; font-weight: 700; }
+.review-plan-editor { display: grid; gap: .8rem; padding-top: 1.5rem; }.review-plan-editor header { display: flex; justify-content: space-between; color: #65756f; }.review-plan-editor header strong { color: #173e36; }
+.review-interval { display: grid; grid-template-columns: 5rem 1fr 6rem 2.5rem; align-items: center; gap: .7rem; }.review-interval input,.review-interval select { min-width: 0; padding: .7rem; border: 1px solid #bed0c9; border-radius: .5rem; background: #fff; }.review-interval button { border: 0; background: transparent; color: #9b5c48; font-size: 1.3rem; }.form-error { color: #9b3f35; }
+.skip-repetitions { border: 0; background: transparent; color: #65756f; text-decoration: underline; text-underline-offset: .2rem; }
+.session-conflict { width: min(100% - 2rem, 38rem); margin: 5rem auto; padding: 2rem; border: 1px solid #dce4e0; border-radius: 1rem; background: #fff; box-shadow: 0 12px 36px rgb(23 62 54 / 8%); }.session-conflict h2 { color: #173e36; }.session-conflict p:not(.eyebrow) { color: #65756f; line-height: 1.65; }
 .task-group { margin-top: 2.75rem; }
 .task-group > h3 { margin: 0 0 .8rem; color: #27312e; font-size: 1rem; }
 .task-group > h3 span { color: #84928d; font-size: .76rem; }
@@ -332,6 +343,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .settings-page { margin-inline: auto; }
 }
 @media (max-width: 640px) {
+  .time-summary { grid-template-columns: 1fr; }
+  .review-interval { grid-template-columns: 4.5rem 1fr 5rem 2rem; gap: .35rem; }
   .app-shell { padding: 1rem .9rem 3rem; }
   .global-page-header { padding: 1rem .9rem; }
   .brand-lockup { row-gap: .8rem; }

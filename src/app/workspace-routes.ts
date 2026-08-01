@@ -3,6 +3,7 @@ export type WorkspacePlace =
   | { kind: 'library' }
   | { kind: 'words' }
   | { kind: 'settings' }
+  | { kind: 'learning-settings' }
   | { kind: 'material'; materialId: string }
   | { kind: 'practice'; materialId: string }
   | { kind: 'review'; materialId: string }
@@ -21,6 +22,7 @@ export function formatWorkspacePlace(place: WorkspacePlace): string {
     case 'library': return '#/library'
     case 'words': return '#/words'
     case 'settings': return '#/settings'
+    case 'learning-settings': return '#/learning-settings'
     case 'material': return `#/materials/${encodeURIComponent(place.materialId)}`
     case 'practice': return `#/materials/${encodeURIComponent(place.materialId)}/practice`
     case 'review': return `#/materials/${encodeURIComponent(place.materialId)}/review`
@@ -37,6 +39,7 @@ export function parseWorkspaceHash(hash: string): ParsedWorkspaceHash {
   if (normalized === '#/library') return valid({ kind: 'library' })
   if (normalized === '#/words') return valid({ kind: 'words' })
   if (normalized === '#/settings') return valid({ kind: 'settings' })
+  if (normalized === '#/learning-settings') return valid({ kind: 'learning-settings' })
 
   const parts = normalized.replace(/^#\//, '').split('/')
   if (parts[0] === 'materials' && parts.length >= 2) {

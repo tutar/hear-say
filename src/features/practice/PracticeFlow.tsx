@@ -32,7 +32,7 @@ function sentenceAnalysis(text: string) {
 }
 
 export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, onSentenceEditChange, onCompleteReview, editorOnly = false, onExit, navigation, onVocabularyLookup, onVocabularyAdd, onVocabularySpeak, onVocabularyOpenSettings }: Props) {
-  const [stage, setStage] = useState(material.firstRoundStage)
+  const [stage, setStage] = useState(onCompleteReview ? 'blind_listen' : material.firstRoundStage)
   const [rate, setRate] = useState(1)
   const [activeSegment, setActiveSegment] = useState<Segment | null>(null)
   const [loopSegment, setLoopSegment] = useState(true)
@@ -41,6 +41,8 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   const [needsHelp, setNeedsHelp] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [helpOptions, setHelpOptions] = useState({ analysis: true, translation: false, chunks: false })
+  const [intensiveProgress, setIntensiveProgress] = useState<Record<string, { completed: number; skipped: boolean }>>({})
+  const fullPlayRef = useRef(false)
   const [vocabularySelection, setVocabularySelection] = useState<VocabularySelection | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   const audioUrl = useMemo(() => URL.createObjectURL(material.audioBlob), [material.audioBlob])
@@ -52,6 +54,8 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     if (!audio || !activeSegment) return
     const stopAtSegmentEnd = () => {
       if (audio.currentTime < activeSegment.endSeconds) return
+      if (fullPlayRef.current) setIntensiveProgress((current) => { const progress = current[activeSegment.id] ?? { completed: 0, skipped: false }; return { ...current, [activeSegment.id]: { completed: Math.min(3, progress.completed + 1), skipped: false } } })
+      fullPlayRef.current = loopSegment
       if (loopSegment) audio.currentTime = activeSegment.startSeconds
       else audio.pause()
     }
@@ -63,6 +67,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     const audio = audioRef.current
     if (!audio) return
     setActiveSegment(segment)
+    fullPlayRef.current = true
     audio.currentTime = segment.startSeconds
     void audio.play().catch(() => undefined)
   }
@@ -73,6 +78,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     else {
       if (audio.currentTime < currentSegment.startSeconds || audio.currentTime >= currentSegment.endSeconds) audio.currentTime = currentSegment.startSeconds
       setActiveSegment(currentSegment)
+      if (audio.currentTime <= currentSegment.startSeconds + .15) fullPlayRef.current = true
       void audio.play().catch(() => undefined)
     }
   }
@@ -85,6 +91,9 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   }
 
   const currentSegment = segments[segmentIndex] ?? null
+  const currentIntensiveProgress = currentSegment ? intensiveProgress[currentSegment.id] ?? { completed: 0, skipped: false } : { completed: 0, skipped: false }
+  const canLeaveCurrent = currentIntensiveProgress.completed >= 3 || currentIntensiveProgress.skipped
+  const allIntensiveComplete = segments.every((segment) => { const progress = intensiveProgress[segment.id]; return progress?.completed === 3 || progress?.skipped })
   const analysis = sentenceAnalysis(currentSegment?.text ?? '')
   function moveToSegment(nextIndex: number) {
     const index = Math.min(Math.max(nextIndex, 0), Math.max(segments.length - 1, 0))
@@ -112,7 +121,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   if (stage === 'complete') return <section className="practice-flow completion-card"><p className="eyebrow">{onCompleteReview ? '到期复习' : '首轮完成'}</p><h2>{onCompleteReview ? '完成这一轮复习' : labels.complete}</h2><p>{onCompleteReview ? '这会按既定间隔安排下一次复习。' : `下次复习：${material.nextReviewAt ?? '已安排'}`}</p>{onCompleteReview && <button className="review-complete-action" type="button" onClick={() => onCompleteReview(material)}>完成本次复习</button>}</section>
 
   if (stage === 'intensive_listen') return <main className="intensive-listening">
-    <audio ref={audioRef} src={audioUrl} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onEnded={() => setIsPlaying(false)} />
+    <audio ref={audioRef} src={audioUrl} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onSeeking={() => { fullPlayRef.current = false }} onEnded={() => setIsPlaying(false)} />
     <header className="intensive-header">
       {navigation ?? <button type="button" className="intensive-icon" aria-label="退出逐句精听" onClick={onExit}>×</button>}
       <h1>{needsHelp ? '难句解读' : '逐句精听'}</h1>
@@ -139,8 +148,10 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     </section>
     <div className="intensive-controls">
       {!needsHelp && <button className="help-action" type="button" onClick={() => { setNeedsHelp(true); setHelpOptions({ analysis: true, translation: false, chunks: false }) }}>听不太懂 <span aria-hidden="true">→</span></button>}
-      <div><button type="button" aria-label="上一句" disabled={segmentIndex === 0} onClick={() => moveToSegment(segmentIndex - 1)}>◀</button><button className={`play-sentence ${isPlaying ? 'is-playing' : ''}`} type="button" aria-label={isPlaying ? '暂停当前句' : '播放当前句'} disabled={!currentSegment} onClick={togglePlayback}><span aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span></button><button type="button" aria-label="下一句" disabled={segmentIndex >= segments.length - 1} onClick={() => moveToSegment(segmentIndex + 1)}>▶</button></div>
-      <small>{isPlaying ? '正在播放' : '准备播放'} · 第 1/3 遍</small>
+      <div><button type="button" aria-label="上一句" disabled={segmentIndex === 0} onClick={() => moveToSegment(segmentIndex - 1)}>◀</button><button className={`play-sentence ${isPlaying ? 'is-playing' : ''}`} type="button" aria-label={isPlaying ? '暂停当前句' : '播放当前句'} disabled={!currentSegment} onClick={togglePlayback}><span aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span></button><button type="button" aria-label="下一句" disabled={segmentIndex >= segments.length - 1 || !canLeaveCurrent} onClick={() => moveToSegment(segmentIndex + 1)}>▶</button></div>
+      <small>{currentIntensiveProgress.skipped ? `已跳过 · 完成 ${currentIntensiveProgress.completed}/3 遍` : `${isPlaying ? '正在播放' : '准备播放'} · 第 ${Math.min(currentIntensiveProgress.completed + 1, 3)}/3 遍`}</small>
+      {!canLeaveCurrent && <button className="skip-repetitions" type="button" onClick={() => currentSegment && setIntensiveProgress((current) => ({ ...current, [currentSegment.id]: { completed: currentIntensiveProgress.completed, skipped: true } }))}>跳过本句（已完成 {currentIntensiveProgress.completed} 遍）</button>}
+      {segmentIndex === segments.length - 1 && allIntensiveComplete && <button className="primary-action" type="button" onClick={finishStage}>完成逐句精听</button>}
     </div>
   </main>
 

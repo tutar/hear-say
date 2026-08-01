@@ -1,0 +1,3 @@
+# Use one Learning Session model for the First Round and Reviews
+
+First Round and Review activities share one framework-independent Learning Session state machine while retaining separate progress and completion outcomes. The session records visible foreground time as mutually exclusive Listening Time or Speaking Time, persists resumable checkpoints, and permits only one active owner tab; browser adapters supply audio, visibility, timestamps, and tab lifecycle events. Reviews repeat the full learning progression and are governed by versioned Review Plans, with each material's Review Schedule pinned to the plan version that created it so later global edits never rewrite history.

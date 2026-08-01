@@ -86,8 +86,11 @@ export class MaterialRepository {
   }
 
   async deleteMaterial(materialId: string): Promise<void> {
-    await db.transaction('rw', db.materials, db.segments, async () => {
+    await db.transaction('rw', db.materials, db.segments, db.reviewSchedules, db.learningSessions, db.learningTimeSlices, async () => {
       await db.segments.where('materialId').equals(materialId).delete()
+      await db.reviewSchedules.where('materialId').equals(materialId).delete()
+      await db.learningSessions.where('materialId').equals(materialId).delete()
+      await db.learningTimeSlices.where('materialId').equals(materialId).delete()
       await db.materials.delete(materialId)
     })
   }
