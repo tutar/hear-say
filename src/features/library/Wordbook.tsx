@@ -1,4 +1,5 @@
 import type { WordEntry } from '../../domain/types'
+import { SpeakerIcon } from './SpeakerIcon'
 
 type Props = { entries: WordEntry[]; activeTerm: string | null; onSpeak: (term: string) => void; onOpen: (id: string) => void }
 
@@ -10,7 +11,7 @@ export function Wordbook({ entries, activeTerm, onSpeak, onOpen }: Props) {
       const speaking = activeTerm === entry.term
       return <li key={entry.id}>
         <button className="word-open" type="button" aria-label={`查看 ${entry.term}`} onClick={() => onOpen(entry.id)} />
-        <button className="word-audio" type="button" aria-label={speaking ? `停止朗读 ${entry.term}` : `朗读 ${entry.term}`} onClick={() => onSpeak(entry.term)}><span aria-hidden="true">{speaking ? '■' : '◖'}</span></button>
+        <button className="word-audio" type="button" aria-label={speaking ? `停止朗读 ${entry.term}` : `朗读 ${entry.term}`} onClick={() => onSpeak(entry.term)}><span aria-hidden="true">{speaking ? '■' : <SpeakerIcon />}</span></button>
         <div><strong>{entry.term}</strong><small>{latest.partOfSpeech} · {latest.meaningZh}</small></div>
       </li>
     })}</ul>}

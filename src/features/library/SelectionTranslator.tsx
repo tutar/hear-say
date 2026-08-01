@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { VocabularyLookup, VocabularySelection } from '../../services/vocabulary-service'
+import { SpeakerIcon } from './SpeakerIcon'
 
 type Props = {
   selection: VocabularySelection
@@ -22,7 +23,7 @@ export function SelectionTranslator({ selection, onLookup, onAdd, onSpeak, onClo
     <p className="selection-meaning">{lookup.partOfSpeech} · {lookup.meaningZh}</p>
     <p>{lookup.contextExplanationZh}</p>
     <small>将所选内容和所在句发送到已配置的词汇服务</small>
-    <footer><button type="button" aria-label={`朗读 ${lookup.term}`} onClick={() => onSpeak(lookup.term)}>◖ 发音</button><button type="button" aria-label="加入生词本" disabled={status === 'saving' || status === 'saved'} onClick={() => { setStatus('saving'); void onAdd(lookup).then(() => setStatus('saved')).catch((reason) => { setError(reason instanceof Error ? reason.message : '保存失败'); setStatus('idle') }) }}>{status === 'saved' ? '已加入' : status === 'saving' ? '正在加入…' : '+ 生词本'}</button></footer>
+    <footer><button type="button" aria-label={`朗读 ${lookup.term}`} onClick={() => onSpeak(lookup.term)}><SpeakerIcon /> 发音</button><button type="button" aria-label="加入生词本" disabled={status === 'saving' || status === 'saved'} onClick={() => { setStatus('saving'); void onAdd(lookup).then(() => setStatus('saved')).catch((reason) => { setError(reason instanceof Error ? reason.message : '保存失败'); setStatus('idle') }) }}>{status === 'saved' ? '已加入' : status === 'saving' ? '正在加入…' : '+ 生词本'}</button></footer>
     {error && <p role="alert">{error}</p>}
   </article>
 }

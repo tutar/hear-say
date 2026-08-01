@@ -19,8 +19,10 @@ describe('PracticeFlow', () => {
 
   it('applies the learner-selected playback speed to the audio element', () => {
     const { container } = render(<PracticeFlow material={{ ...material, firstRoundStage: 'shadowing' }} segments={segments} onComplete={vi.fn()} />)
-    fireEvent.change(screen.getByLabelText('播放速度'), { target: { value: '0.75' } })
-    expect(container.querySelector('audio')).toHaveProperty('playbackRate', 0.75)
+    const speed = screen.getByLabelText('播放速度')
+    expect([...speed.querySelectorAll('option')].map((option) => option.textContent)).toEqual(Array.from({ length: 16 }, (_, index) => `${((index + 5) / 10).toFixed(1)}×`))
+    fireEvent.change(speed, { target: { value: '0.7' } })
+    expect(container.querySelector('audio')).toHaveProperty('playbackRate', 0.7)
   })
 
   it('keeps help separate from the difficult-sentence bookmark', () => {
@@ -46,13 +48,15 @@ describe('PracticeFlow', () => {
     expect(screen.getAllByText('First transcript sentence')).toHaveLength(1)
     expect(screen.queryByText('按标点和语义停顿分块朗读，再连成完整句子。')).not.toBeInTheDocument()
     expect(onSegmentsSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: '收藏为难句' }).querySelector('.bookmark-icon')).toBeInTheDocument()
+    expect(screen.queryByText('◇')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '收藏为难句' }))
     expect(onSegmentsSaved).toHaveBeenCalledWith([expect.objectContaining({ id: 's1', isDifficult: true })])
     const audio = container.querySelector('audio')!
     fireEvent.play(audio)
-    expect(screen.getByRole('button', { name: '暂停当前句' })).toHaveTextContent('Ⅱ')
+    expect(screen.getByRole('button', { name: '暂停当前句' }).querySelector('.pause-mark')).toBeInTheDocument()
     fireEvent.pause(audio)
-    expect(screen.getByRole('button', { name: '播放当前句' })).toHaveTextContent('▶')
+    expect(screen.getByRole('button', { name: '播放当前句' }).querySelector('.play-mark')).toBeInTheDocument()
   })
 
   it('offers the shared translator after a learner selects text in the intensive transcript', () => {
@@ -61,6 +65,25 @@ describe('PracticeFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: '听不太懂' }))
     fireEvent.mouseUp(screen.getByText('First transcript sentence'))
     expect(screen.getByRole('button', { name: '翻译 transcript' })).toBeInTheDocument()
+  })
+
+  it('enables the next sentence after three complete repetitions', () => {
+    const nextSegment: Segment = { id: 's2', materialId: 'm1', order: 1, startSeconds: 1, endSeconds: 2, text: 'Second sentence', isDifficult: false }
+    const { container } = render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={[...segments, nextSegment]} onComplete={vi.fn()} />)
+    const next = screen.getByRole('button', { name: '下一句' })
+    const audio = container.querySelector('audio')!
+    audio.play = vi.fn(async () => undefined)
+    expect(next).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: '播放当前句' }))
+    fireEvent.seeking(audio)
+    for (let repetition = 0; repetition < 3; repetition += 1) {
+      audio.currentTime = 1
+      fireEvent.timeUpdate(audio)
+    }
+    expect(next).toBeEnabled()
+    fireEvent.click(next)
+    expect(screen.getByRole('button', { name: '上一句' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '下一句' })).toBeDisabled()
   })
 
   it('shows learner-authored keyword prompts while retelling', () => {

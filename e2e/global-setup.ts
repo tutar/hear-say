@@ -1,6 +1,7 @@
 const DEFAULT_ASR_BASE_URL = 'http://localhost:8021/v1'
 
 export default async function globalSetup() {
+  if (process.env.HEAR_SAY_SKIP_ASR_CHECK === '1') return
   const baseUrl = process.env.ASR_BASE_URL ?? DEFAULT_ASR_BASE_URL
   const openApiUrl = new URL('/openapi.json', baseUrl).toString()
   const timeoutMs = Number(process.env.ASR_HEALTH_TIMEOUT_MS ?? 60_000)

@@ -1,10 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { MaterialWithSegments } from '../../db/material-repository'
 import type { FirstRoundStage } from '../../domain/types'
+import { EarIcon } from './EarIcon'
 
 type Props = { material: MaterialWithSegments; navigation?: ReactNode; onBack: () => void; onContinue: () => void }
-const stages: Array<{ id: FirstRoundStage; label: string; description: string; mark: string }> = [
-  { id: 'blind_listen', label: '全文盲听', description: '先完整听，感受整体难度和大意', mark: '◖' },
+const stages: Array<{ id: FirstRoundStage; label: string; description: string; mark: ReactNode }> = [
+  { id: 'blind_listen', label: '全文盲听', description: '先完整听，感受整体难度和大意', mark: <EarIcon /> },
   { id: 'intensive_listen', label: '逐句精听', description: '逐句听懂，校对文本与时间轴', mark: '◉' },
   { id: 'shadowing', label: '难句跟读', description: '针对卡住的句子反复开口', mark: '◌' },
   { id: 'retelling', label: '段落复述', description: '合上原文，用英文复述主要内容', mark: '▰' },

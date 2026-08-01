@@ -22,4 +22,15 @@ describe('LearningSessionTracker', () => {
     await tracker.dispatch({ type: 'checkpoint', at: '2026-08-01T00:01:00.000Z' })
     expect((await repository.timeSlices()).reduce((sum, slice) => sum + new Date(slice.endedAt).getTime() - new Date(slice.startedAt).getTime(), 0)).toBe(40_000)
   })
+
+  it('automatically reclaims an active session whose owner is no longer alive', async () => {
+    const repository = new LearningRepository()
+    const abandoned = new LearningSessionTracker(repository, 'closed-tab')
+    await abandoned.start('m1', 'first_round', 'blind_listen', '2026-08-01T00:00:00.000Z')
+    abandoned.close()
+    const current = new LearningSessionTracker(repository, 'current-tab')
+    expect((await current.start('m1', 'first_round', 'blind_listen', '2026-08-01T00:01:00.000Z')).kind).toBe('started')
+    expect((await repository.activeSession())?.ownerTabId).toBe('current-tab')
+    current.close()
+  })
 })
