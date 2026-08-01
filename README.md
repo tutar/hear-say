@@ -1,67 +1,64 @@
 # Hear & Say
 
-一个本地优先的 Chrome 扩展：把一段英语音频走完“听 → 看 → 跟 → 说”的学习循环，并通过网页与逐句精听中的主动划词建立语境单词本。
+English | [简体中文](README.zh-CN.md)
 
-## 前置条件
+A local-first Chrome extension that turns real English audio into a complete listening and speaking loop: listen, inspect, shadow, and speak. Contextual vocabulary can be collected deliberately from web selections and intensive-listening sentences.
 
-- Node.js LTS 与 pnpm（项目通过 Corepack 使用 pnpm）
-- Chrome 114 或更高版本
-- 可用的 OpenAI 兼容语音转写端点；默认是本机 FunASR：`http://localhost:8021/v1`，模型 `sensevoice`
-- 可选的 DeepSeek API；词汇解释默认使用 `https://api.deepseek.com` 和 `deepseek-v4-flash`
+## Requirements
 
-## 本地开发与加载扩展
+- Node.js 24 and the pnpm version declared by the project through Corepack
+- Chrome 114 or later
+- An OpenAI-compatible speech-to-text endpoint; the default is local FunASR at `http://localhost:8021/v1` using the `sensevoice` model
+- Optional DeepSeek API access for contextual vocabulary explanations
+
+## Develop and load the extension
 
 ```bash
 corepack pnpm install
 corepack pnpm dev
 ```
 
-开发模式会生成 Chrome 扩展构建。也可以创建生产构建：
+For a production build:
 
 ```bash
 corepack pnpm build
 ```
 
-在 Chrome 打开 `chrome://extensions`，启用「开发者模式」，选择「加载已解压的扩展程序」，并选择 `.output/chrome-mv3`。点击工具栏中的 Hear & Say 图标会在普通标签页打开完整学习页面。
+Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `.output/chrome-mv3`. The Hear & Say toolbar icon opens the learning experience in a regular browser tab.
 
-## 配置转写
+## Install a released version
 
-在头像菜单的「AI 服务」页面分别配置音频转写和词汇解释。默认转写配置适配：
+Download `hear-say-vX.Y.Z-chrome.zip` from the repository's [GitHub Releases](https://github.com/tutar/hear-say/releases), extract it, and load the extracted directory from `chrome://extensions` using **Load unpacked**.
+
+Release source archives generated automatically by GitHub are source code, not ready-to-load extension packages.
+
+## Configure AI services
+
+Open **AI Services** from the avatar menu to configure transcription and vocabulary explanations. The default transcription settings are:
 
 ```text
 Base URL: http://localhost:8021/v1
-模型: sensevoice
+Model: sensevoice
 ```
 
-首次向某个 ASR 地址上传音频时，Chrome 会请求该地址的访问权限。这是为了让扩展仅在你明确配置和同意的端点上发送你主动选择的音频。若转写不可用，材料和原始音频仍会保留，可以重试或导入 SRT/VTT 字幕恢复。
+Chrome asks for permission before audio is uploaded to a newly configured ASR host. If transcription fails, the material and original audio remain available for retrying or recovery by importing SRT/VTT subtitles.
 
-普通网页或逐句精听中选中不超过 8 个英文单词后，扩展只显示“翻译”入口；点击后才把选词及其所在句发送到已配置的 DeepSeek 兼容服务。点击 `+ 生词本` 才会保存词卡。单词、语境释义、原句和来源仅存储在扩展本机 IndexedDB。
+Selecting up to eight English words on a regular web page or in intensive listening shows a Translate action. Only after that action is used are the selection and its sentence sent to the configured DeepSeek-compatible service. A vocabulary card is stored only after **+ Vocabulary** is selected.
 
-## 数据与密钥边界
+## Data and credential boundaries
 
-- 音频、句子时间轴、难句标记和学习进度存储在扩展本机 IndexedDB。
-- API Key 仅保存在扩展本地存储，以密码字段编辑；不会在界面、错误提示或日志中显示。
-- 音频只在你主动导入后发送到配置且授权的 ASR 端点。
-- 网页 content script 仅在用户主动划词时读取选区；不扫描页面，不读取输入框或可编辑区域。
-- DeepSeek 只收到选词和所在句，不收到网页 URL、标题、音频名称或整页内容。
-- `tts` 权限只用于通过 Chrome 系统语音朗读用户点击的英文词条或短语。
+- Audio, sentence timelines, difficult-sentence marks, vocabulary, and progress remain in the extension's local IndexedDB.
+- API keys remain in extension-local storage and are never printed in the UI, errors, or logs.
+- Audio is sent only to the ASR endpoint explicitly configured and authorized by the user.
+- The web content script reacts to deliberate selections; it does not scan pages or inspect editable fields.
+- Vocabulary requests contain the selected text and its sentence, not the page URL, title, audio name, or full page.
+- The `tts` permission is used only to pronounce a word or phrase the user explicitly plays.
 
-## 验证
+## Verify
 
 ```bash
 corepack pnpm test
 corepack pnpm build
 ```
 
-单元和组件测试位于顶层 `tests/`；针对构建后 Chrome 扩展的 Playwright E2E 位于 `e2e/`，并使用本地 FunASR。完整的环境准备、测试边界和提交要求见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-手动验收路径：
-
-1. 加载 `.output/chrome-mv3`，从工具栏打开扩展。
-2. 使用本地 FunASR `sensevoice` 导入一段真实英语音频。
-3. 编辑一句文本，合并或拆分句子，调整一个时间戳，并标记一个难句。
-4. 完成“听、看、跟、说”四个阶段；复述阶段可填写自己的关键词。
-5. 刷新页面，确认材料、编辑和学习进度仍在；到期后从复习队列完成一次复习。
-6. 将 ASR 地址临时改为不可达，导入另一段音频，确认可重试；再导入有效 SRT/VTT 字幕完成恢复。
-
-删除确认框应显示“音频、句子时间轴与学习记录将一并永久删除”；取消后材料保持不变，确认后刷新页面也不再出现该材料。
+Unit and component tests live in `tests/`; Playwright extension tests live in `e2e/` and use local FunASR. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, test boundaries, contribution rules, and the release process.

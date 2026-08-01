@@ -10,7 +10,8 @@
     "test": "wxt prepare && vitest run",
     "test:watch": "wxt prepare && vitest",
     "test:e2e": "HEAR_SAY_E2E=1 wxt build && playwright test",
-    "test:e2e:list": "playwright test --list"
+    "test:e2e:list": "playwright test --list",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@wxt-dev/module-react": "^1.1.2",
