@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type MouseEvent, ty
 import { MaterialRepository } from '../db/material-repository'
 import { WordRepository } from '../db/word-repository'
 import { LearningRepository } from '../db/learning-repository'
-import type { AsrSettings, Material, ReviewPlan, VocabularySettings, WordSource } from '../domain/types'
-import { currentLearningWeek, dailyLearningStats, type DailyLearningStats } from '../domain/learning-stats'
+import type { AsrSettings, FreeListeningPreferences, FreeListeningProgress, Material, ReviewPlan, ReviewSchedule, VocabularySettings, WordSource } from '../domain/types'
+import { DEFAULT_FREE_LISTENING_PREFERENCES } from '../domain/free-listening'
+import { dailyLearningStats, type DailyLearningStats } from '../domain/learning-stats'
 import { completeScheduledReview } from '../domain/review-plan'
+import { startReviewOccurrence } from '../domain/review-plan'
 import { AiServiceSettings } from '../features/library/AiServiceSettings'
 import { AudioImportControl } from '../features/library/AudioImportControl'
 import type { Transcribe } from '../features/library/library-controller'
@@ -16,6 +18,7 @@ import { PracticeFlow } from '../features/practice/PracticeFlow'
 import { MaterialOverview } from '../features/practice/MaterialOverview'
 import { LearningDashboard } from '../features/practice/LearningDashboard'
 import { LearningSettings } from '../features/practice/LearningSettings'
+import { FreeListening } from '../features/practice/FreeListening'
 import { transcribeAudio } from '../services/asr-client'
 import { createDeepSeekExplainer } from '../services/deepseek-client'
 import { WordSpeaker } from '../services/word-speaker'
@@ -28,7 +31,7 @@ import { formatWorkspacePlace, type WorkspacePlace } from './workspace-routes'
 type PrimarySection = 'learning' | 'library' | 'words' | 'settings'
 const primarySectionFor = (place: WorkspacePlace): PrimarySection => {
   if (place.kind === 'word') return 'words'
-  if (place.kind === 'material' || place.kind === 'practice' || place.kind === 'review' || place.kind === 'subtitles') return 'library'
+  if (place.kind === 'material' || place.kind === 'practice' || place.kind === 'review' || place.kind === 'subtitles' || place.kind === 'free-listening') return 'library'
   return place.kind === 'learning-settings' ? 'learning' : place.kind
 }
 function WorkspaceLink({ place, go, children, ...props }: { place: WorkspacePlace; go: (place: WorkspacePlace) => void; children: ReactNode } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>) {
@@ -62,10 +65,11 @@ export function App() {
   const workspace = useMemo(() => new LearningWorkspace({ materialRepository: repository, wordRepository, navigation: window, confirmDiscard: () => confirm('当前句子尚未保存。放弃修改并离开吗？') }), [repository, wordRepository])
   const workspaceState = useSyncExternalStore(workspace.subscribe, workspace.getState)
   const { materials, dueMaterials, words: wordEntries, currentMaterial, currentWord: wordDetail, loading: workspaceLoading, message, isImporting } = workspaceState
-  const active = ['practice', 'review', 'subtitles'].includes(workspaceState.place.kind) ? currentMaterial : null
+  const active = ['practice', 'review', 'subtitles', 'free-listening'].includes(workspaceState.place.kind) ? currentMaterial : null
   const overview = workspaceState.place.kind === 'material' ? currentMaterial : null
   const isReview = workspaceState.place.kind === 'review'
   const subtitleEditor = workspaceState.place.kind === 'subtitles'
+  const isFreeListening = workspaceState.place.kind === 'free-listening'
   const primarySection = primarySectionFor(workspaceState.place)
   const [activeSpokenTerm, setActiveSpokenTerm] = useState<string | null>(null)
   const wordSpeaker = useMemo(() => typeof browser === 'undefined' ? null : new WordSpeaker(browser.tts, setActiveSpokenTerm), [])
@@ -75,6 +79,11 @@ export function App() {
   const [reviewPlan, setReviewPlan] = useState<ReviewPlan | null>(null)
   const [weekStats, setWeekStats] = useState<DailyLearningStats[]>([])
   const [sessionConflict, setSessionConflict] = useState(false)
+  const [freePreferences, setFreePreferences] = useState<FreeListeningPreferences>(DEFAULT_FREE_LISTENING_PREFERENCES)
+  const [freeProgress, setFreeProgress] = useState<FreeListeningProgress | undefined>()
+  const [currentSchedule, setCurrentSchedule] = useState<ReviewSchedule | undefined>()
+  const [reviewStages, setReviewStages] = useState<import('../domain/types').ReviewStage[] | undefined>()
+  const [reviewDifficultIds, setReviewDifficultIds] = useState<string[]>([])
   const sessionTracker = useMemo(() => new LearningSessionTracker(learningRepository, sessionStorage.getItem('hear-say-tab-id') ?? (() => { const id = crypto.randomUUID(); sessionStorage.setItem('hear-say-tab-id', id); return id })(), () => setSessionConflict(true)), [learningRepository])
 
   const navigate = (place: WorkspacePlace) => { void workspace.go(place) }
@@ -91,17 +100,40 @@ export function App() {
     if (typeof browser === 'undefined') return
     void Promise.all([loadAsrSettings(), loadVocabularySettings()]).then(([asr, vocabulary]) => { setAsrSettings(asr); setVocabularySettings(vocabulary) })
   }, [])
-  useEffect(() => { void Promise.all([learningRepository.currentReviewPlan(), learningRepository.timeSlices()]).then(([plan, slices]) => { setReviewPlan(plan); setWeekStats(currentLearningWeek(dailyLearningStats(slices), new Date())) }) }, [learningRepository, workspaceState.place])
+  useEffect(() => { void Promise.all([learningRepository.currentReviewPlan(), learningRepository.timeSlices()]).then(([plan, slices]) => { setReviewPlan(plan); setWeekStats(dailyLearningStats(slices)) }) }, [learningRepository, workspaceState.place])
+  useEffect(() => {
+    if (!active || !isFreeListening) return
+    void Promise.all([learningRepository.freeListeningPreferences(), learningRepository.freeListeningProgress(active.id)]).then(([preferences, progress]) => { setFreePreferences(preferences); setFreeProgress(progress) })
+  }, [active?.id, isFreeListening, learningRepository])
+  useEffect(() => {
+    if (!overview) { setCurrentSchedule(undefined); return }
+    void learningRepository.scheduleForMaterial(overview.id).then(setCurrentSchedule)
+  }, [overview?.id, learningRepository])
   useEffect(() => {
     if (!active || subtitleEditor) return
     let disposed = false
-    const begin = async () => { const result = await sessionTracker.start(active.id, isReview ? 'review' : 'first_round', isReview || active.firstRoundStage === 'complete' ? 'blind_listen' : active.firstRoundStage, new Date().toISOString()); if (!disposed) setSessionConflict(result.kind === 'owned_elsewhere') }
+    const begin = async () => {
+      const at = new Date().toISOString()
+      let frozenStages: import('../domain/types').ReviewStage[] | undefined
+      if (isReview) {
+        const schedule = await learningRepository.scheduleForMaterial(active.id)
+        if (schedule) {
+          const started = startReviewOccurrence(schedule, active.segments.filter((segment) => segment.isDifficult).map((segment) => segment.id), at)
+          await learningRepository.saveSchedule(started)
+          frozenStages = started.occurrences[started.completedCount]?.stages ?? undefined
+          if (!disposed) { setReviewStages(frozenStages); setReviewDifficultIds(started.occurrences[started.completedCount]?.difficultSegmentIds ?? []) }
+        }
+      }
+      const initialStage = isFreeListening ? 'intensive_listen' : frozenStages?.[0] ?? (isReview || active.firstRoundStage === 'complete' ? 'blind_listen' : active.firstRoundStage)
+      const result = await sessionTracker.start(active.id, isFreeListening ? 'free_listening' : isReview ? 'review' : 'first_round', initialStage, at, false, frozenStages)
+      if (!disposed) setSessionConflict(result.kind === 'owned_elsewhere')
+    }
     void begin()
     const checkpoint = window.setInterval(() => { void sessionTracker.dispatch({ type: 'checkpoint', at: new Date().toISOString() }) }, 30_000)
     const visibility = () => { void sessionTracker.dispatch({ type: 'visibility_changed', visible: !document.hidden, at: new Date().toISOString() }) }
     document.addEventListener('visibilitychange', visibility)
     return () => { disposed = true; clearInterval(checkpoint); document.removeEventListener('visibilitychange', visibility); void sessionTracker.end(new Date().toISOString()) }
-  }, [active?.id, isReview, sessionTracker, subtitleEditor])
+  }, [active?.id, isFreeListening, isReview, sessionTracker, subtitleEditor])
   useEffect(() => () => sessionTracker.close(), [sessionTracker])
 
   async function importFile(file: File) {
@@ -211,12 +243,13 @@ export function App() {
 
   if (active) {
     if (sessionConflict && !subtitleEditor) return <><header className="global-page-header">{siteHeader}</header><main className="session-conflict"><p className="eyebrow">Learning session</p><h2>这个学习过程正在另一个页面中进行</h2><p>为避免重复计时，这里暂时保持只读。你可以把控制权转移到当前页面。</p><button className="primary-action" type="button" onClick={async () => { await sessionTracker.start(active.id, isReview ? 'review' : 'first_round', isReview || active.firstRoundStage === 'complete' ? 'blind_listen' : active.firstRoundStage, new Date().toISOString(), true); setSessionConflict(false) }}>在这里继续</button></main></>
-    if (!subtitleEditor && active.firstRoundStage === 'intensive_listen') return <><header className="global-page-header">{siteHeader}</header><PracticeFlow material={active} segments={active.segments} navigation={<span />} onExit={goBack} onComplete={(material) => void persistPractice(material)} onSegmentsSaved={persistSegments} onSentenceEditChange={workspace.setSentenceEditActive} onVocabularyLookup={lookupSelectedVocabulary} onVocabularyAdd={addSelectedVocabulary} onVocabularySpeak={(term) => void toggleWordSpeech(term)} onVocabularyOpenSettings={() => openSection('settings')} /></>
-    return <main className="app-shell practice-page"><header className="app-header">{siteHeader}</header><header className="practice-header"><p className="eyebrow">{subtitleEditor ? '管理字幕' : '正在练习'}</p><h1>{active.title}</h1></header><PracticeFlow material={active} segments={active.segments} editorOnly={subtitleEditor} navigation={<span />} onExit={goBack} onComplete={(material) => void persistPractice(material)} onSegmentsSaved={persistSegments} onSentenceEditChange={workspace.setSentenceEditActive} onCompleteReview={isReview ? (material) => void completeReview(material) : undefined} onVocabularyLookup={lookupSelectedVocabulary} onVocabularyAdd={addSelectedVocabulary} onVocabularySpeak={(term) => void toggleWordSpeech(term)} /></main>
+    if (isFreeListening) return <><header className="global-page-header">{siteHeader}</header><FreeListening material={active} segments={active.segments} preferences={freePreferences} progress={freeProgress} onPreferencesChange={async (preferences) => { setFreePreferences(preferences); await learningRepository.saveFreeListeningPreferences(preferences) }} onProgressChange={async (progress) => { setFreeProgress(progress); await learningRepository.saveFreeListeningProgress(progress) }} onPlaybackChange={(playing) => void sessionTracker.dispatch({ type: 'audio_playback_changed', playing, at: new Date().toISOString() })} /></>
+    if (!subtitleEditor && active.firstRoundStage === 'intensive_listen') return <><header className="global-page-header">{siteHeader}</header><PracticeFlow material={active} segments={active.segments} navigation={<span />} onExit={goBack} onPlaybackChange={(playing) => void sessionTracker.dispatch({ type: 'audio_playback_changed', playing, at: new Date().toISOString() })} onComplete={(material) => void persistPractice(material)} onSegmentsSaved={persistSegments} onSentenceEditChange={workspace.setSentenceEditActive} onVocabularyLookup={lookupSelectedVocabulary} onVocabularyAdd={addSelectedVocabulary} onVocabularySpeak={(term) => void toggleWordSpeech(term)} onVocabularyOpenSettings={() => openSection('settings')} /></>
+    return <main className="app-shell practice-page"><header className="app-header">{siteHeader}</header><header className="practice-header"><p className="eyebrow">{subtitleEditor ? '管理字幕' : '正在练习'}</p><h1>{active.title}</h1></header><PracticeFlow material={active} segments={active.segments} reviewStages={isReview ? reviewStages : undefined} difficultSegmentIds={isReview ? reviewDifficultIds : undefined} onReviewStageComplete={isReview ? () => { void sessionTracker.dispatch({ type: 'stage_completed', at: new Date().toISOString() }) } : undefined} onPlaybackChange={!subtitleEditor ? (playing) => void sessionTracker.dispatch({ type: 'audio_playback_changed', playing, at: new Date().toISOString() }) : undefined} editorOnly={subtitleEditor} navigation={<span />} onExit={goBack} onComplete={(material) => void persistPractice(material)} onSegmentsSaved={persistSegments} onSentenceEditChange={workspace.setSentenceEditActive} onCompleteReview={isReview ? (material) => void completeReview(material) : undefined} onVocabularyLookup={lookupSelectedVocabulary} onVocabularyAdd={addSelectedVocabulary} onVocabularySpeak={(term) => void toggleWordSpeech(term)} /></main>
   }
 
   if (overview) {
-    return <><header className="global-page-header">{siteHeader}</header><MaterialOverview material={overview} navigation={<span />} onBack={goBack} onContinue={() => navigate({ kind: 'practice', materialId: overview.id })} /></>
+    return <><header className="global-page-header">{siteHeader}</header><MaterialOverview material={overview} schedule={currentSchedule} navigation={<span />} onBack={goBack} onFreeListen={() => navigate({ kind: 'free-listening', materialId: overview.id })} onContinue={() => navigate({ kind: 'practice', materialId: overview.id })} /></>
   }
 
   if (wordDetail) return <><header className="global-page-header">{siteHeader}</header><WordDetail entry={wordDetail} activeTerm={activeSpokenTerm} onBack={goBack} onSpeak={(term) => void toggleWordSpeech(term)} onOpenSource={(source) => void openWordSource(source)} /></>

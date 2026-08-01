@@ -28,7 +28,7 @@ export class LearningSessionTracker {
 
   get current(): SessionRuntime | null { return this.runtime }
 
-  async start(materialId: string, purpose: LearningSessionPurpose, initialStage: LearningStage, at: string, takeOver = false): Promise<SessionStartResult> {
+  async start(materialId: string, purpose: LearningSessionPurpose, initialStage: LearningStage, at: string, takeOver = false, stages?: LearningStage[]): Promise<SessionStartResult> {
     const active = await this.repository.activeSession()
     if (active && active.ownerTabId !== this.tabId && !takeOver && await this.ownerIsAlive(active.ownerTabId, active.materialId)) return { kind: 'owned_elsewhere', ownerTabId: active.ownerTabId }
     const reclaiming = Boolean(active && active.ownerTabId !== this.tabId)
@@ -38,8 +38,9 @@ export class LearningSessionTracker {
       return { kind: 'resumed', runtime: this.runtime }
     }
     if (active?.ownerTabId === this.tabId) await this.repository.saveActiveSession({ ...active, status: 'ended', endedAt: at, lastCheckpointAt: at })
-    const created = createLearningSession({ id: crypto.randomUUID(), materialId, purpose, reviewScheduleId: null, reviewOccurrence: null, ownerTabId: this.tabId }, at)
+    const created = createLearningSession({ id: crypto.randomUUID(), materialId, purpose, reviewScheduleId: null, reviewOccurrence: null, ownerTabId: this.tabId, stages: purpose === 'free_listening' ? ['intensive_listen'] : stages }, at)
     created.session.stage = initialStage
+    created.session.stageIndex = Math.max(0, created.session.stages.indexOf(initialStage))
     await this.repository.saveActiveSession(created.session)
     this.runtime = created
     if (takeOver || reclaiming) this.channel?.postMessage({ type: 'takeover', ownerTabId: this.tabId, materialId })

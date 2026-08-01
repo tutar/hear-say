@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { LearningRepository } from '@/db/learning-repository'
 import { resetDatabaseForTest } from '@/db/database'
+import type { LearningSession } from '@/domain/types'
 
 describe('LearningRepository', () => {
   beforeEach(resetDatabaseForTest)
@@ -17,8 +18,17 @@ describe('LearningRepository', () => {
 
   it('will not mutate a completed session', async () => {
     const repository = new LearningRepository()
-    const session = { id: 's1', materialId: 'm1', purpose: 'first_round' as const, reviewScheduleId: null, reviewOccurrence: null, stage: 'retelling' as const, segmentIndex: 0, playbackRate: 1, loopSegment: true, intensiveProgress: {}, retellKeywords: [], status: 'completed' as const, ownerTabId: 't1', startedAt: '2026-08-01T00:00:00.000Z', lastCheckpointAt: '2026-08-01T00:01:00.000Z', endedAt: '2026-08-01T00:01:00.000Z' }
+    const session: LearningSession = { id: 's1', materialId: 'm1', purpose: 'first_round', reviewScheduleId: null, reviewOccurrence: null, stage: 'retelling', stages: ['blind_listen', 'intensive_listen', 'shadowing', 'retelling'], stageIndex: 3, segmentIndex: 0, playbackRate: 1, loopSegment: true, audioPlaying: false, intensiveProgress: {}, retellKeywords: [], status: 'completed', ownerTabId: 't1', startedAt: '2026-08-01T00:00:00.000Z', lastCheckpointAt: '2026-08-01T00:01:00.000Z', endedAt: '2026-08-01T00:01:00.000Z' }
     await repository.saveActiveSession(session)
     await expect(repository.saveActiveSession({ ...session, retellKeywords: ['changed'] })).rejects.toThrow('immutable')
+  })
+
+  it('persists global free-listening preferences separately from each material position', async () => {
+    const repository = new LearningRepository()
+    await repository.saveFreeListeningPreferences({ viewMode: 'list', textVisible: false, loopMode: 'full', playbackRate: 0.7, analysisVisible: false, translationVisible: true, chunksVisible: true })
+    await repository.saveFreeListeningProgress({ materialId: 'm1', segmentIndex: 3, positionSeconds: 42.5, updatedAt: '2026-08-01T00:00:00.000Z' })
+    expect(await repository.freeListeningPreferences()).toMatchObject({ viewMode: 'list', playbackRate: 0.7 })
+    expect(await repository.freeListeningProgress('m1')).toMatchObject({ segmentIndex: 3, positionSeconds: 42.5 })
+    expect(await repository.freeListeningProgress('m2')).toBeUndefined()
   })
 })

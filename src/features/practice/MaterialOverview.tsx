@@ -1,9 +1,9 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import type { MaterialWithSegments } from '../../db/material-repository'
-import type { FirstRoundStage } from '../../domain/types'
+import type { FirstRoundStage, ReviewOccurrence, ReviewSchedule } from '../../domain/types'
 import { EarIcon } from './EarIcon'
 
-type Props = { material: MaterialWithSegments; navigation?: ReactNode; onBack: () => void; onContinue: () => void }
+type Props = { material: MaterialWithSegments; schedule?: ReviewSchedule; navigation?: ReactNode; onBack: () => void; onContinue: () => void; onFreeListen?: () => void }
 const stages: Array<{ id: FirstRoundStage; label: string; description: string; mark: ReactNode }> = [
   { id: 'blind_listen', label: '全文盲听', description: '先完整听，感受整体难度和大意', mark: <EarIcon /> },
   { id: 'intensive_listen', label: '逐句精听', description: '逐句听懂，校对文本与时间轴', mark: '◉' },
@@ -12,7 +12,10 @@ const stages: Array<{ id: FirstRoundStage; label: string; description: string; m
 ]
 const duration = (seconds: number | null) => seconds === null ? '--:--' : `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`
 
-export function MaterialOverview({ material, navigation, onBack, onContinue }: Props) {
+const reviewStageNames = { blind_listen: '全文盲听', difficult_practice: '难句补练', retelling: '段落复述' } as const
+const intervalText = (occurrence: ReviewOccurrence) => `${occurrence.interval.value} ${occurrence.interval.unit === 'hour' ? '小时' : '天'}后`
+
+export function MaterialOverview({ material, schedule, navigation, onBack, onContinue, onFreeListen }: Props) {
   const currentIndex = material.firstRoundStage === 'complete' ? stages.length : stages.findIndex((stage) => stage.id === material.firstRoundStage)
   const completed = Math.max(0, currentIndex)
   const progress = Math.round((completed / stages.length) * 100)
@@ -41,6 +44,21 @@ export function MaterialOverview({ material, navigation, onBack, onContinue }: P
         </li>
       })}</ol>
     </section>
-    <footer className="overview-footer"><button className="continue-action" type="button" onClick={onContinue}>{material.firstRoundStage === 'blind_listen' ? '开始学习' : material.firstRoundStage === 'complete' ? '查看学习结果' : '继续学习'}</button></footer>
+    {schedule && <ReviewTimeline schedule={schedule} difficultCount={difficultCount} />}
+    <footer className="overview-footer overview-actions"><button className="free-listen-action" type="button" onClick={onFreeListen}>随心听</button><button className="continue-action" type="button" onClick={onContinue}>{material.firstRoundStage === 'blind_listen' ? '开始学习' : material.firstRoundStage === 'complete' ? '查看学习结果' : '继续学习'}</button></footer>
   </main>
+}
+
+function ReviewTimeline({ schedule, difficultCount }: { schedule: ReviewSchedule; difficultCount: number }) {
+  const initiallyOpen = schedule.occurrences.filter((item) => item.status === 'in_progress' || (item.ordinal === schedule.completedCount + 1 && item.dueAt !== null)).map((item) => item.id)
+  const [open, setOpen] = useState(new Set(initiallyOpen))
+  const allOpen = open.size === schedule.occurrences.length
+  const toggleAll = () => setOpen(allOpen ? new Set() : new Set(schedule.occurrences.map((item) => item.id)))
+  return <section className="review-timeline"><div className="map-heading"><div><p className="eyebrow">Review plan</p><h2>复习计划</h2></div><button type="button" onClick={toggleAll}>{allOpen ? '全部收起' : '全部展开'}</button></div><ol>{schedule.occurrences.map((occurrence) => {
+    const expanded = open.has(occurrence.id)
+    const stages = occurrence.stages ?? (difficultCount > 0 ? ['blind_listen', 'difficult_practice', 'retelling'] : ['blind_listen', 'retelling'])
+    const status = occurrence.status === 'completed' ? '已完成' : occurrence.status === 'in_progress' ? '进行中' : occurrence.ordinal === schedule.completedCount + 1 ? '待复习' : '计划中'
+    const timing = occurrence.dueAt && occurrence.ordinal === schedule.completedCount + 1 ? new Date(occurrence.dueAt).toLocaleString() : intervalText(occurrence)
+    return <li key={occurrence.id} className={occurrence.status === 'in_progress' ? 'is-current' : ''}><button type="button" aria-expanded={expanded} onClick={() => setOpen((current) => { const next = new Set(current); if (next.has(occurrence.id)) next.delete(occurrence.id); else next.add(occurrence.id); return next })}><span>第 {occurrence.ordinal} 轮</span><small>{timing} · {stages.length} 个阶段</small><b>{status}</b><i aria-hidden="true">⌄</i></button>{expanded && <ul>{stages.map((stage, index) => <li key={stage}><span>{index + 1}</span><strong>{reviewStageNames[stage]}</strong>{stage === 'difficult_practice' && <small>{occurrence.difficultSegmentIds?.length ?? difficultCount} 句</small>}</li>)}</ul>}</li>
+  })}</ol></section>
 }

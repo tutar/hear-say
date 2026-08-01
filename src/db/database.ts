@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { LearningSession, LearningTimeSlice, Material, ReviewPlan, ReviewSchedule, Segment, VocabularyCacheEntry, WordEntry } from '../domain/types'
+import type { FreeListeningPreferences, FreeListeningProgress, LearningSession, LearningTimeSlice, Material, ReviewPlan, ReviewSchedule, Segment, VocabularyCacheEntry, WordEntry } from '../domain/types'
 
 export class HearSayDatabase extends Dexie {
   materials!: EntityTable<Material, 'id'>
@@ -10,6 +10,8 @@ export class HearSayDatabase extends Dexie {
   reviewSchedules!: EntityTable<ReviewSchedule, 'id'>
   learningSessions!: EntityTable<LearningSession, 'id'>
   learningTimeSlices!: EntityTable<LearningTimeSlice, 'id'>
+  freeListeningPreferences!: EntityTable<FreeListeningPreferences, 'id'>
+  freeListeningProgress!: EntityTable<FreeListeningProgress, 'materialId'>
 
   constructor() {
     super('hear-say')
@@ -35,6 +37,14 @@ export class HearSayDatabase extends Dexie {
       wordEntries: 'id,&normalizedTerm,lastSeenAt', wordLookups: 'key,updatedAt',
       reviewPlans: 'id,&version,createdAt', reviewSchedules: 'id,&materialId,nextReviewAt,status',
       learningSessions: 'id,materialId,status,ownerTabId,startedAt', learningTimeSlices: 'id,sessionId,materialId,startedAt',
+    })
+    this.version(5).stores({
+      materials: 'id,status,nextReviewAt,updatedAt,isFavorite,*tags',
+      segments: 'id,materialId,[materialId+order],isDifficult',
+      wordEntries: 'id,&normalizedTerm,lastSeenAt', wordLookups: 'key,updatedAt',
+      reviewPlans: 'id,&version,createdAt', reviewSchedules: 'id,&materialId,nextReviewAt,status',
+      learningSessions: 'id,materialId,status,ownerTabId,startedAt', learningTimeSlices: 'id,sessionId,materialId,startedAt',
+      freeListeningPreferences: 'id', freeListeningProgress: 'materialId,updatedAt',
     })
   }
 }

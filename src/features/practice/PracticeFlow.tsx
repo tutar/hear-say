@@ -1,25 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { completeStage } from '../../domain/learning'
-import type { Material, Segment } from '../../domain/types'
+import type { FirstRoundStage, LearningStage, Material, ReviewStage, Segment } from '../../domain/types'
 import { SegmentEditor } from './SegmentEditor'
 import { SelectionTranslator } from '../library/SelectionTranslator'
 import type { WordSource } from '../../domain/types'
 import type { VocabularyLookup, VocabularySelection } from '../../services/vocabulary-service'
+import { PlaybackRateSelect, PlayGlyph, StepGlyph } from './PlayerControls'
 
-type Props = { material: Material; segments: Segment[]; onComplete: (material: Material) => void; onSegmentsSaved?: (segments: Segment[]) => void | Promise<void>; onSentenceEditChange?: (dirty: boolean) => void; onCompleteReview?: (material: Material) => void; editorOnly?: boolean; onExit?: () => void; navigation?: ReactNode; onVocabularyLookup?: (selection: VocabularySelection) => Promise<VocabularyLookup>; onVocabularyAdd?: (selection: VocabularySelection, lookup: VocabularyLookup, source: WordSource) => Promise<void>; onVocabularySpeak?: (term: string) => void; onVocabularyOpenSettings?: () => void }
+type Props = { material: Material; segments: Segment[]; onComplete: (material: Material) => void; onSegmentsSaved?: (segments: Segment[]) => void | Promise<void>; onSentenceEditChange?: (dirty: boolean) => void; onCompleteReview?: (material: Material) => void; onReviewStageComplete?: () => void; onPlaybackChange?: (playing: boolean) => void; reviewStages?: ReviewStage[]; difficultSegmentIds?: string[]; editorOnly?: boolean; onExit?: () => void; navigation?: ReactNode; onVocabularyLookup?: (selection: VocabularySelection) => Promise<VocabularyLookup>; onVocabularyAdd?: (selection: VocabularySelection, lookup: VocabularyLookup, source: WordSource) => Promise<void>; onVocabularySpeak?: (term: string) => void; onVocabularyOpenSettings?: () => void }
 
 const labels = {
   blind_listen: 'Blind listening',
   intensive_listen: 'Intensive listening',
   shadowing: 'Shadowing',
+  difficult_practice: 'Difficult sentence practice',
   retelling: 'Retelling',
   complete: 'First round complete',
 } as const
-
-const playbackRates = Array.from({ length: 16 }, (_, index) => (index + 5) / 10)
-function PlaybackRateSelect({ value, onChange, compact = false }: { value: number; onChange: (value: number) => void; compact?: boolean }) {
-  return <label className={`playback-rate-control ${compact ? 'is-compact' : ''}`}><span>{compact ? '速度' : '播放速度'}</span><span className="playback-rate-select"><select aria-label="播放速度" value={value} onChange={(event) => onChange(Number(event.target.value))}>{playbackRates.map((rate) => <option key={rate} value={rate}>{rate.toFixed(1)}×</option>)}</select><svg aria-hidden="true" viewBox="0 0 12 8"><path d="m1 1.5 5 5 5-5" /></svg></span></label>
-}
 
 const functionWords = new Set(['a', 'an', 'the', 'to', 'of', 'for', 'and', 'or', 'but', 'in', 'on', 'at', 'as', 'is', 'are', 'was', 'were'])
 function sentenceAnalysis(text: string) {
@@ -36,8 +33,8 @@ function sentenceAnalysis(text: string) {
   return { keywords, weakWords, grammar }
 }
 
-export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, onSentenceEditChange, onCompleteReview, editorOnly = false, onExit, navigation, onVocabularyLookup, onVocabularyAdd, onVocabularySpeak, onVocabularyOpenSettings }: Props) {
-  const [stage, setStage] = useState(onCompleteReview ? 'blind_listen' : material.firstRoundStage)
+export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, onSentenceEditChange, onCompleteReview, onReviewStageComplete, onPlaybackChange, reviewStages, difficultSegmentIds, editorOnly = false, onExit, navigation, onVocabularyLookup, onVocabularyAdd, onVocabularySpeak, onVocabularyOpenSettings }: Props) {
+  const [stage, setStage] = useState<LearningStage | 'complete'>(onCompleteReview ? reviewStages?.[0] ?? 'blind_listen' : material.firstRoundStage)
   const [rate, setRate] = useState(1)
   const [activeSegment, setActiveSegment] = useState<Segment | null>(null)
   const [loopSegment, setLoopSegment] = useState(true)
@@ -47,12 +44,17 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   const [isPlaying, setIsPlaying] = useState(false)
   const [helpOptions, setHelpOptions] = useState({ analysis: true, translation: false, chunks: false })
   const [intensiveProgress, setIntensiveProgress] = useState<Record<string, { completed: number; skipped: boolean }>>({})
+  const [difficultIndex, setDifficultIndex] = useState(0)
+  const [difficultResults, setDifficultResults] = useState<Record<string, 'done' | 'skipped'>>({})
+  const [firstRoundDifficultIds, setFirstRoundDifficultIds] = useState<string[]>([])
   const fullPlayRef = useRef(false)
   const [vocabularySelection, setVocabularySelection] = useState<VocabularySelection | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   const audioUrl = useMemo(() => URL.createObjectURL(material.audioBlob), [material.audioBlob])
 
   useEffect(() => () => URL.revokeObjectURL(audioUrl), [audioUrl])
+  useEffect(() => { if (onCompleteReview && reviewStages?.length) setStage(reviewStages[0]) }, [onCompleteReview, reviewStages])
+  useEffect(() => { if (stage === 'shadowing' && firstRoundDifficultIds.length === 0) setFirstRoundDifficultIds(segments.filter((segment) => segment.isDifficult).map((segment) => segment.id)) }, [stage, segments, firstRoundDifficultIds.length])
   useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = rate }, [rate])
   useEffect(() => {
     const audio = audioRef.current
@@ -89,8 +91,14 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   }
 
   function finishStage() {
+    if (onCompleteReview && reviewStages) {
+      const index = reviewStages.indexOf(stage as ReviewStage)
+      onReviewStageComplete?.()
+      setStage(index >= 0 && index < reviewStages.length - 1 ? reviewStages[index + 1] : 'complete')
+      return
+    }
     const retellKeywords = keywords.split(',').map((keyword) => keyword.trim()).filter(Boolean)
-    const updated = completeStage({ ...material, firstRoundStage: stage, retellKeywords }, new Date())
+    const updated = completeStage({ ...material, firstRoundStage: stage as FirstRoundStage, retellKeywords }, new Date())
     setStage(updated.firstRoundStage)
     onComplete(updated)
   }
@@ -126,7 +134,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   if (stage === 'complete') return <section className="practice-flow completion-card"><p className="eyebrow">{onCompleteReview ? '到期复习' : '首轮完成'}</p><h2>{onCompleteReview ? '完成这一轮复习' : labels.complete}</h2><p>{onCompleteReview ? '这会按既定间隔安排下一次复习。' : `下次复习：${material.nextReviewAt ?? '已安排'}`}</p>{onCompleteReview && <button className="review-complete-action" type="button" onClick={() => onCompleteReview(material)}>完成本次复习</button>}</section>
 
   if (stage === 'intensive_listen') return <main className="intensive-listening">
-    <audio ref={audioRef} src={audioUrl} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onSeeking={() => {
+    <audio ref={audioRef} src={audioUrl} onPlay={() => { setIsPlaying(true); onPlaybackChange?.(true) }} onPause={() => { setIsPlaying(false); onPlaybackChange?.(false) }} onSeeking={() => {
       const audio = audioRef.current
       if (!audio || !currentSegment || Math.abs(audio.currentTime - currentSegment.startSeconds) > .15) fullPlayRef.current = false
     }} onEnded={() => setIsPlaying(false)} />
@@ -139,7 +147,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     <button className={`difficulty-toggle ${currentSegment?.isDifficult ? 'is-marked' : ''}`} type="button" aria-label={currentSegment?.isDifficult ? '取消难句收藏' : '收藏为难句'} aria-pressed={Boolean(currentSegment?.isDifficult)} onClick={markDifficult}><span>{currentSegment?.isDifficult ? '已收藏' : '收藏难句'}</span><svg className="bookmark-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 3.5h10v17l-5-3.4-5 3.4Z" /></svg></button>
     <section className={`sentence-stage ${needsHelp ? 'has-help' : ''}`}>
       {!needsHelp ? <div className="listen-prompt" aria-hidden="true"><span>◉</span><i /><i /><i /></div> : <>
-        <nav className="help-tabs" aria-label="显示辅助内容"><button className={helpOptions.analysis ? 'active' : ''} aria-pressed={helpOptions.analysis} onClick={() => toggleHelp('analysis')}>解析</button><button className={helpOptions.translation ? 'active' : ''} aria-pressed={helpOptions.translation} onClick={() => toggleHelp('translation')}>翻译</button><button className={helpOptions.chunks ? 'active' : ''} aria-pressed={helpOptions.chunks} onClick={() => toggleHelp('chunks')}>意群</button></nav>
+        <nav className="content-switches help-tabs" aria-label="显示辅助内容"><button className={helpOptions.analysis ? 'active' : ''} aria-pressed={helpOptions.analysis} onClick={() => toggleHelp('analysis')}>解析</button><button className={helpOptions.translation ? 'active' : ''} aria-pressed={helpOptions.translation} onClick={() => toggleHelp('translation')}>翻译</button><button className={helpOptions.chunks ? 'active' : ''} aria-pressed={helpOptions.chunks} onClick={() => toggleHelp('chunks')}>意群</button></nav>
         <div className="sentence-help">
           {helpOptions.chunks
             ? <p className="sentence-transcript sentence-chunks" onMouseUp={selectVocabulary}>{currentSegment?.text.split(/([,;:.!?]\s*)/).filter(Boolean).map((chunk, index) => <mark key={`${chunk}-${index}`}>{chunk}</mark>)}</p>
@@ -156,22 +164,28 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     </section>
     <div className="intensive-controls">
       {!needsHelp && <button className="help-action" type="button" onClick={() => { setNeedsHelp(true); setHelpOptions({ analysis: true, translation: false, chunks: false }) }}>听不太懂 <span aria-hidden="true">→</span></button>}
-      <div><button type="button" aria-label="上一句" disabled={segmentIndex === 0} onClick={() => moveToSegment(segmentIndex - 1)}>◀</button><button className={`play-sentence ${isPlaying ? 'is-playing' : ''}`} type="button" aria-label={isPlaying ? '暂停当前句' : '播放当前句'} disabled={!currentSegment} onClick={togglePlayback}><span aria-hidden="true">{isPlaying ? <svg className="pause-mark" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" /></svg> : <svg className="play-mark" viewBox="0 0 24 24"><path d="M8 5 20 12 8 19Z" /></svg>}</span></button><button type="button" aria-label="下一句" disabled={segmentIndex >= segments.length - 1 || !canLeaveCurrent} onClick={() => moveToSegment(segmentIndex + 1)}>▶</button></div>
+      <div><button type="button" aria-label="上一句" disabled={segmentIndex === 0} onClick={() => moveToSegment(segmentIndex - 1)}><StepGlyph direction="previous" /></button><button className={`play-sentence round-play-button ${isPlaying ? 'is-playing' : ''}`} type="button" aria-label={isPlaying ? '暂停当前句' : '播放当前句'} disabled={!currentSegment} onClick={togglePlayback}><PlayGlyph playing={isPlaying} /></button><button type="button" aria-label="下一句" disabled={segmentIndex >= segments.length - 1 || !canLeaveCurrent} onClick={() => moveToSegment(segmentIndex + 1)}><StepGlyph direction="next" /></button></div>
       <small>{currentIntensiveProgress.skipped ? `已跳过 · 完成 ${currentIntensiveProgress.completed}/3 遍` : `${isPlaying ? '正在播放' : '准备播放'} · 第 ${Math.min(currentIntensiveProgress.completed + 1, 3)}/3 遍`}</small>
       {!canLeaveCurrent && <button className="skip-repetitions" type="button" onClick={() => currentSegment && setIntensiveProgress((current) => ({ ...current, [currentSegment.id]: { completed: currentIntensiveProgress.completed, skipped: true } }))}>跳过本句（已完成 {currentIntensiveProgress.completed} 遍）</button>}
       {segmentIndex === segments.length - 1 && allIntensiveComplete && <button className="primary-action" type="button" onClick={finishStage}>完成逐句精听</button>}
     </div>
   </main>
 
-  const showTranscript = stage === 'shadowing'
+  if (stage === 'shadowing' || stage === 'difficult_practice') {
+    const ids = stage === 'difficult_practice' ? difficultSegmentIds ?? [] : firstRoundDifficultIds
+    const difficultSegments = ids.map((id) => segments.find((segment) => segment.id === id)).filter((segment): segment is Segment => Boolean(segment))
+    const sentence = difficultSegments[difficultIndex]
+    const resolved = difficultSegments.every((item) => difficultResults[item.id])
+    return <main className="difficult-practice"><audio ref={audioRef} src={audioUrl} onPlay={() => { setIsPlaying(true); onPlaybackChange?.(true) }} onPause={() => { setIsPlaying(false); onPlaybackChange?.(false) }} /><header><div><p className="eyebrow">{stage === 'shadowing' ? 'First round' : 'Review'}</p><h1>{stage === 'shadowing' ? '难句跟读' : '难句补练'}</h1></div><PlaybackRateSelect value={rate} onChange={setRate} compact /></header>{sentence ? <><div className="sentence-progress"><i style={{ width: `${(difficultIndex + 1) / difficultSegments.length * 100}%` }} /><div><span>第 {difficultIndex + 1}/{difficultSegments.length} 句</span><span>{difficultResults[sentence.id] === 'done' ? '已完成' : difficultResults[sentence.id] === 'skipped' ? '已跳过' : '待练习'}</span></div></div><section><p>{sentence.text}</p></section><div className="difficult-controls"><button type="button" aria-label="上一句" disabled={difficultIndex === 0} onClick={() => setDifficultIndex((index) => index - 1)}><StepGlyph direction="previous" /></button><button className={`free-play round-play-button ${isPlaying ? 'is-playing' : ''}`} type="button" aria-label={isPlaying ? '暂停当前难句' : '播放当前难句'} onClick={() => { if (!audioRef.current) return; if (isPlaying) audioRef.current.pause(); else { audioRef.current.currentTime = sentence.startSeconds; setActiveSegment(sentence); void audioRef.current.play().catch(() => undefined) } }}><PlayGlyph playing={isPlaying} /></button><button type="button" aria-label="下一句" disabled={difficultIndex === difficultSegments.length - 1} onClick={() => setDifficultIndex((index) => index + 1)}><StepGlyph direction="next" /></button></div><div className="difficult-decisions"><button type="button" onClick={() => setDifficultResults((current) => ({ ...current, [sentence.id]: 'skipped' }))}>跳过本句</button><button type="button" onClick={() => setDifficultResults((current) => ({ ...current, [sentence.id]: 'done' }))}>标记完成</button></div></> : <section className="no-difficult-sentences"><p>本轮没有收藏的难句。</p></section>}<button className="primary-action complete-stage" type="button" disabled={difficultSegments.length > 0 && !resolved} onClick={finishStage}>完成{labels[stage]}</button></main>
+  }
+
   return (
     <section className="practice-flow" aria-label="Practice flow">
-      <div className="stage-rail practice-rail" aria-label={`当前阶段：${labels[stage]}`}><span className={stage === 'blind_listen' ? 'active' : ''}>听</span><i /><span>看</span><i /><span className={stage === 'shadowing' ? 'active' : ''}>跟</span><i /><span className={stage === 'retelling' ? 'active' : ''}>说</span></div>
+      <div className="stage-rail practice-rail" aria-label={`当前阶段：${labels[stage]}`}><span className={stage === 'blind_listen' ? 'active' : ''}>听</span><i /><span>看</span><i /><span>跟</span><i /><span className={stage === 'retelling' ? 'active' : ''}>说</span></div>
       <h2>{labels[stage]}</h2>
-      <p className="stage-instruction">{stage === 'blind_listen' ? '先完整听一遍。不要急着看原文。' : stage === 'shadowing' ? '跟着句子开口，节奏比完美更重要。' : '合上原文，用自己的话复述这段内容。'}</p>
-      <audio ref={audioRef} controls src={audioUrl} />
+      <p className="stage-instruction">{stage === 'blind_listen' ? '先完整听一遍。不要急着看原文。' : '合上原文，用自己的话复述这段内容。'}</p>
+      <audio ref={audioRef} controls src={audioUrl} onPlay={() => onPlaybackChange?.(true)} onPause={() => onPlaybackChange?.(false)} />
       {stage !== 'blind_listen' && <div className="player-controls"><PlaybackRateSelect value={rate} onChange={setRate} /><label className="loop-control"><input type="checkbox" checked={loopSegment} onChange={(event) => setLoopSegment(event.target.checked)} /> 循环当前句</label></div>}
-      {showTranscript && <SegmentEditor durationSeconds={material.durationSeconds} segments={segments} onSegmentsSaved={onSegmentsSaved ?? (() => undefined)} onPlaySegment={playSegment} onDirtyChange={onSentenceEditChange} />}
       {stage === 'retelling' && <label className="keyword-prompt">复述关键词<input aria-label="复述关键词" value={keywords} placeholder="例如：人物、转折、结论" onChange={(event) => setKeywords(event.target.value)} /><small>用逗号分隔；它们只在这段材料的复述中显示。</small></label>}
       <button className="primary-action complete-stage" type="button" onClick={finishStage}>完成{labels[stage]}</button>
     </section>

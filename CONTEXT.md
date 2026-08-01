@@ -29,11 +29,11 @@ A resumable, time-bounded learning activity for one material, used consistently 
 _Avoid_: Practice Session, study page
 
 **Listening Time**:
-Effective Learning Session time spent on input through blind listening or intensive listening. It is mutually exclusive with Speaking Time.
+Effective Learning Session time spent while audio is playing, plus all Blind Listening and Intensive Listening activity. It is mutually exclusive with Speaking Time.
 _Avoid_: Audio playback duration, total session time
 
 **Speaking Time**:
-Effective Learning Session time spent on output through shadowing or retelling. Shadowing counts only as Speaking Time so total learning time is never double-counted.
+Effective visible time in Difficult Sentence Shadowing, Retelling, or Difficult Sentence Reinforcement while audio is paused. It is mutually exclusive with Listening Time so total learning time is never double-counted.
 _Avoid_: Microphone recording duration, total session time
 
 **Learning Day**:
@@ -45,7 +45,7 @@ The seven local Learning Days from Monday through Sunday used for weekly totals.
 _Avoid_: Rolling seven days, Sunday-start week
 
 **First Round**:
-The one-time progression through listening, intensive listening, shadowing, and retelling for a ready material. It may span multiple Learning Sessions until completed.
+The one-time progression through Blind Listening, Intensive Listening, Difficult Sentence Shadowing, and Retelling for a ready material. Its difficult-sentence list freezes when Difficult Sentence Shadowing begins, and it may span multiple Learning Sessions until completed.
 _Avoid_: Practice, initial Review
 
 **Intensive Listening Repetition**:
@@ -57,13 +57,33 @@ The learner-authored keyword notes saved independently for one First Round or on
 _Avoid_: Material keywords, shared retelling draft
 
 **Review**:
-A repeated progression through the same listening, intensive listening, shadowing, and retelling stages as the First Round, attempted through one or more Learning Sessions and governed by its Review Schedule. Its schedule advances only after retelling is completed; difficult-sentence bookmarks are not automatic Review steps.
+A scheduled learning progression through Blind Listening, optional Difficult Sentence Reinforcement, and Retelling. A Review freezes its stages and difficult-sentence list when first started, may span multiple Learning Sessions, and advances its Review Schedule only after Retelling is completed.
 _Avoid_: Practice mode, replay, Review Session type
+
+**Review Occurrence**:
+One numbered Review within a Review Schedule. Before it starts it exposes its interval rule; when first started it freezes its stage list and difficult-sentence list, and after completion it records the actual completion time.
+_Avoid_: Review Session, schedule step
 
 **Review Plan**:
 A versioned, configurable sequence of positive, non-decreasing review intervals measured from each preceding completion. Its length determines the Review count; editing the global plan creates a new version and never rewrites completed Review history.
 _Avoid_: Hard-coded intervals, Review Session list
 
 **Review Schedule**:
-A material's current position in one pinned Review Plan version and the time its next Review becomes due. Existing schedules do not silently migrate when the global plan changes.
+A material's ordered Review Occurrences under one pinned Review Plan version, including the exact current due time and relative interval rules for later occurrences. Existing schedules do not silently migrate when the global plan changes.
 _Avoid_: Review Plan, session history
+
+**Difficult Sentence Shadowing**:
+The First Round stage that practises the difficult sentences frozen when the stage begins. Each sentence is explicitly completed or skipped, without a forced repetition count.
+_Avoid_: Shadowing all sentences, Review reinforcement
+
+**Difficult Sentence Reinforcement**:
+An optional Review stage included only when difficult sentences exist as that Review Occurrence starts. Its frozen sentences are explicitly completed or skipped, without a forced repetition count.
+_Avoid_: Difficult bookmark list, Intensive Listening
+
+**Free Listening**:
+Self-directed whole-material listening outside the First Round and Reviews. It continuously plays across sentence boundaries, supports whole-material and sentence looping plus single-sentence and sentence-list views, never advances structured progress, and contributes to Intensive Listening Time.
+_Avoid_: Review, free practice, audio preview
+
+**Training Time**:
+Effective Learning Session time classified exactly once as Blind Listening, Intensive Listening, Difficult Sentence Shadowing, Retelling, or Difficult Sentence Reinforcement. Free Listening contributes to Intensive Listening; mixed listening-and-speaking stages subdivide their time by audio playback state.
+_Avoid_: Audio duration, duplicated input/output time

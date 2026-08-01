@@ -178,7 +178,7 @@ export class LearningWorkspace {
       currentMaterial = await this.dependencies.materialRepository.getMaterial(place.materialId)
       if (request !== this.resolution) return
       if (!currentMaterial) return this.recover({ kind: 'library' }, '该材料已不存在')
-      if ((place.kind === 'practice' || place.kind === 'review') && currentMaterial.status !== 'ready') {
+      if ((place.kind === 'practice' || place.kind === 'review' || place.kind === 'free-listening') && currentMaterial.status !== 'ready') {
         return this.recover({ kind: 'material', materialId: place.materialId }, '材料转写完成后才能开始学习')
       }
       if (place.kind === 'review' && (!currentMaterial.nextReviewAt || new Date(currentMaterial.nextReviewAt) > new Date())) {

@@ -6,6 +6,7 @@ export type WorkspacePlace =
   | { kind: 'learning-settings' }
   | { kind: 'material'; materialId: string }
   | { kind: 'practice'; materialId: string }
+  | { kind: 'free-listening'; materialId: string }
   | { kind: 'review'; materialId: string }
   | { kind: 'subtitles'; materialId: string }
   | { kind: 'word'; wordId: string }
@@ -25,6 +26,7 @@ export function formatWorkspacePlace(place: WorkspacePlace): string {
     case 'learning-settings': return '#/learning-settings'
     case 'material': return `#/materials/${encodeURIComponent(place.materialId)}`
     case 'practice': return `#/materials/${encodeURIComponent(place.materialId)}/practice`
+    case 'free-listening': return `#/materials/${encodeURIComponent(place.materialId)}/free-listening`
     case 'review': return `#/materials/${encodeURIComponent(place.materialId)}/review`
     case 'subtitles': return `#/materials/${encodeURIComponent(place.materialId)}/subtitles`
     case 'word': return `#/words/${encodeURIComponent(place.wordId)}`
@@ -47,6 +49,7 @@ export function parseWorkspaceHash(hash: string): ParsedWorkspaceHash {
     if (!materialId) return invalid()
     if (parts.length === 2) return valid({ kind: 'material', materialId })
     if (parts.length === 3 && parts[2] === 'practice') return valid({ kind: 'practice', materialId })
+    if (parts.length === 3 && parts[2] === 'free-listening') return valid({ kind: 'free-listening', materialId })
     if (parts.length === 3 && parts[2] === 'review') return valid({ kind: 'review', materialId })
     if (parts.length === 3 && parts[2] === 'subtitles') return valid({ kind: 'subtitles', materialId })
   }

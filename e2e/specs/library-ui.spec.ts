@@ -1,4 +1,6 @@
 import { test, expect, chromium, type BrowserContext, type Page, type Worker } from '@playwright/test'
+
+declare const chrome: { runtime: { sendMessage: (message: unknown) => Promise<unknown> } }
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'

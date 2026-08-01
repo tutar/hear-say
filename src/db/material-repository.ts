@@ -82,15 +82,22 @@ export class MaterialRepository {
   }
 
   async resetLearningProgress(materialId: string): Promise<void> {
-    await this.updateMaterial(materialId, { firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, retellKeywords: undefined })
+    await db.transaction('rw', db.materials, db.reviewSchedules, db.learningSessions, async () => {
+      const count = await db.materials.update(materialId, { firstRoundStage: 'blind_listen', nextReviewAt: null, reviewStep: 0, retellKeywords: undefined, updatedAt: new Date().toISOString() })
+      if (count === 0) throw new Error('material was not found')
+      await db.reviewSchedules.where('materialId').equals(materialId).delete()
+      const unfinished = await db.learningSessions.where('materialId').equals(materialId).filter((session) => session.status !== 'completed').primaryKeys()
+      await db.learningSessions.bulkDelete(unfinished)
+    })
   }
 
   async deleteMaterial(materialId: string): Promise<void> {
-    await db.transaction('rw', db.materials, db.segments, db.reviewSchedules, db.learningSessions, db.learningTimeSlices, async () => {
+    await db.transaction('rw', [db.materials, db.segments, db.reviewSchedules, db.learningSessions, db.learningTimeSlices, db.freeListeningProgress], async () => {
       await db.segments.where('materialId').equals(materialId).delete()
       await db.reviewSchedules.where('materialId').equals(materialId).delete()
       await db.learningSessions.where('materialId').equals(materialId).delete()
       await db.learningTimeSlices.where('materialId').equals(materialId).delete()
+      await db.freeListeningProgress.delete(materialId)
       await db.materials.delete(materialId)
     })
   }

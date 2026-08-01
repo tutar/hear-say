@@ -16,12 +16,15 @@ const material: MaterialWithSegments = {
 describe('MaterialOverview', () => {
   it('summarizes progress and only continues when the learner asks', () => {
     const onContinue = vi.fn()
-    render(<MaterialOverview material={material} onBack={vi.fn()} onContinue={onContinue} />)
+    const onFreeListen = vi.fn()
+    render(<MaterialOverview material={material} onBack={vi.fn()} onContinue={onContinue} onFreeListen={onFreeListen} />)
     expect(screen.getByRole('heading', { name: 'The Art of Small Talk' })).toBeInTheDocument()
     expect(screen.getByText('3/4 完成')).toBeInTheDocument()
     expect(screen.getByText('1 个难句')).toBeInTheDocument()
     expect(onContinue).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: '继续学习' }))
     expect(onContinue).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: '随心听' }))
+    expect(onFreeListen).toHaveBeenCalledOnce()
   })
 })

@@ -9,6 +9,7 @@ describe('workspace routes', () => {
     ['#/settings', { kind: 'settings' }],
     ['#/materials/m1', { kind: 'material', materialId: 'm1' }],
     ['#/materials/m1/practice', { kind: 'practice', materialId: 'm1' }],
+    ['#/materials/m1/free-listening', { kind: 'free-listening', materialId: 'm1' }],
     ['#/materials/m1/review', { kind: 'review', materialId: 'm1' }],
     ['#/materials/m1/subtitles', { kind: 'subtitles', materialId: 'm1' }],
     ['#/words/w1', { kind: 'word', wordId: 'w1' }],

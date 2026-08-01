@@ -1,6 +1,7 @@
 import { db } from './database'
 import { createReviewPlan, createReviewSchedule, DEFAULT_REVIEW_INTERVALS } from '../domain/review-plan'
-import type { LearningSession, LearningTimeSlice, ReviewInterval, ReviewPlan, ReviewSchedule } from '../domain/types'
+import { DEFAULT_FREE_LISTENING_PREFERENCES, normalizeFreeListeningPreferences } from '../domain/free-listening'
+import type { FreeListeningPreferences, FreeListeningProgress, LearningSession, LearningTimeSlice, ReviewInterval, ReviewPlan, ReviewSchedule } from '../domain/types'
 
 export class LearningRepository {
   async currentReviewPlan(now = new Date().toISOString()): Promise<ReviewPlan> {
@@ -40,6 +41,15 @@ export class LearningRepository {
     await db.transaction('rw', db.learningSessions, db.learningTimeSlices, async () => { await db.learningSessions.put(session); if (slices.length) await db.learningTimeSlices.bulkPut(slices) })
   }
   async timeSlices(): Promise<LearningTimeSlice[]> { return db.learningTimeSlices.orderBy('startedAt').toArray() }
+
+  async freeListeningPreferences(): Promise<FreeListeningPreferences> {
+    return await db.freeListeningPreferences.get('global') ?? DEFAULT_FREE_LISTENING_PREFERENCES
+  }
+  async saveFreeListeningPreferences(preferences: Omit<FreeListeningPreferences, 'id'> | FreeListeningPreferences): Promise<void> {
+    await db.freeListeningPreferences.put(normalizeFreeListeningPreferences({ ...preferences, id: 'global' }))
+  }
+  async freeListeningProgress(materialId: string): Promise<FreeListeningProgress | undefined> { return db.freeListeningProgress.get(materialId) }
+  async saveFreeListeningProgress(progress: FreeListeningProgress): Promise<void> { await db.freeListeningProgress.put(progress) }
 
   async deleteForMaterial(materialId: string): Promise<void> {
     const sessions = await db.learningSessions.where('materialId').equals(materialId).primaryKeys()

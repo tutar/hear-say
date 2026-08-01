@@ -1,7 +1,7 @@
 type AppTabBrowser = {
   runtime: {
     getURL: (path: `/app.html${string}`) => string
-    getContexts?: (filter: { contextTypes: ['TAB'] }) => Promise<Array<{ contextType: string; documentUrl: string; tabId: number; windowId: number }>>
+    getContexts?: (filter: { contextTypes: ['TAB'] }) => Promise<Array<{ contextType: string; documentUrl?: string; tabId: number; windowId: number }>>
   }
   tabs: {
     query: (query: { url: string }) => Promise<Array<{ id?: number; windowId?: number }>>
@@ -17,7 +17,7 @@ async function openOrFocus(browserApi: AppTabBrowser, hash: string): Promise<voi
   const baseUrl = browserApi.runtime.getURL('/app.html')
   const url = browserApi.runtime.getURL(`/app.html${hash}`)
   const contexts = await browserApi.runtime.getContexts?.({ contextTypes: ['TAB'] })
-  const appContext = contexts?.find((context) => context.documentUrl.startsWith(baseUrl))
+  const appContext = contexts?.find((context) => context.documentUrl?.startsWith(baseUrl))
   const [queried] = appContext ? [] : await browserApi.tabs.query({ url: `${baseUrl}*` })
   const existing = appContext ? { id: appContext.tabId, windowId: appContext.windowId } : queried
   if (existing?.id !== undefined) {

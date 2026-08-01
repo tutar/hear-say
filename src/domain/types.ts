@@ -1,9 +1,22 @@
 export type MaterialStatus = 'pending_transcription' | 'ready' | 'transcription_failed'
 
 export type FirstRoundStage = 'blind_listen' | 'intensive_listen' | 'shadowing' | 'retelling' | 'complete'
-export type LearningStage = Exclude<FirstRoundStage, 'complete'>
-export type LearningSessionPurpose = 'first_round' | 'review'
-export type LearningTimeCategory = 'listening' | 'speaking'
+export type LearningStage = Exclude<FirstRoundStage, 'complete'> | 'difficult_practice'
+export type LearningSessionPurpose = 'first_round' | 'review' | 'free_listening'
+export type LearningTimeMode = 'listening' | 'speaking'
+export type TrainingCategory = 'blind_listen' | 'intensive_listen' | 'shadowing' | 'retelling' | 'difficult_practice'
+export type FreeListeningLoopMode = 'off' | 'full' | 'sentence'
+export type FreeListeningPreferences = {
+  id: 'global'
+  viewMode: 'single' | 'list'
+  textVisible: boolean
+  loopMode: FreeListeningLoopMode
+  playbackRate: number
+  analysisVisible: boolean
+  translationVisible: boolean
+  chunksVisible: boolean
+}
+export type FreeListeningProgress = { materialId: string; segmentIndex: number; positionSeconds: number; updatedAt: string }
 
 export type IntensiveRepetitionProgress = {
   completed: number
@@ -17,9 +30,12 @@ export type LearningSession = {
   reviewScheduleId: string | null
   reviewOccurrence: number | null
   stage: LearningStage
+  stages: LearningStage[]
+  stageIndex: number
   segmentIndex: number
   playbackRate: number
   loopSegment: boolean
+  audioPlaying: boolean
   intensiveProgress: Record<string, IntensiveRepetitionProgress>
   retellKeywords: string[]
   status: 'active' | 'completed' | 'ended'
@@ -33,12 +49,26 @@ export type LearningTimeSlice = {
   id: string
   sessionId: string
   materialId: string
-  category: LearningTimeCategory
+  trainingCategory: TrainingCategory
+  mode: LearningTimeMode
   startedAt: string
   endedAt: string
 }
 
 export type ReviewInterval = { value: number; unit: 'hour' | 'day' }
+export type ReviewStage = 'blind_listen' | 'difficult_practice' | 'retelling'
+export type ReviewOccurrence = {
+  id: string
+  ordinal: number
+  interval: ReviewInterval
+  dueAt: string | null
+  status: 'scheduled' | 'in_progress' | 'completed'
+  stages: ReviewStage[] | null
+  difficultSegmentIds: string[] | null
+  stageIndex: number
+  startedAt: string | null
+  completedAt: string | null
+}
 export type ReviewPlan = {
   id: string
   version: number
@@ -51,6 +81,7 @@ export type ReviewSchedule = {
   planId: string
   planVersion: number
   intervals: ReviewInterval[]
+  occurrences: ReviewOccurrence[]
   completedCount: number
   nextReviewAt: string | null
   status: 'active' | 'completed'
