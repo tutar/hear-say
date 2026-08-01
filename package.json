@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "wxt prepare && vitest run",
+    "test:watch": "wxt prepare && vitest",
     "test:e2e": "HEAR_SAY_E2E=1 wxt build && playwright test",
     "test:e2e:list": "playwright test --list"
   },
