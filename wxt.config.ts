@@ -16,7 +16,7 @@ export default defineConfig({
   }),
   manifest: {
     minimum_chrome_version: '116',
-    action: { default_title: 'Hear & Say' },
+    action: { default_title: 'Hear & Say', default_icon: { 16: '/icon-16.png', 32: '/icon-32.png', 48: '/icon-48.png', 128: '/icon-128.png' } },
     permissions: ['storage', 'tts', 'offscreen', 'tabs', 'contextMenus', 'notifications', ...(recordingE2e ? ['tabCapture' as const] : [])],
     optional_permissions: recordingE2e ? undefined : ['tabCapture'],
     host_permissions: e2eHostPermissions,
