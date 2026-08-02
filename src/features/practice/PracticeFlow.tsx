@@ -7,6 +7,7 @@ import type { WordSource } from '../../domain/types'
 import type { VocabularyLookup, VocabularySelection } from '../../services/vocabulary-service'
 import { PlaybackRateSelect, PlayGlyph, StepGlyph } from './PlayerControls'
 import { useListeningSession } from './useListeningSession'
+import { SentenceSupportControls } from './SentenceSupportPanel'
 
 type Props = { material: Material; segments: Segment[]; onComplete: (material: Material) => void; onSegmentsSaved?: (segments: Segment[]) => void | Promise<void>; onSentenceEditChange?: (dirty: boolean) => void; onCompleteReview?: (material: Material) => void; onReviewStageComplete?: () => void; onPlaybackChange?: (playing: boolean) => void; reviewStages?: ReviewStage[]; difficultSegmentIds?: string[]; editorOnly?: boolean; onExit?: () => void; navigation?: ReactNode; onVocabularyLookup?: (selection: VocabularySelection) => Promise<VocabularyLookup>; onVocabularyAdd?: (selection: VocabularySelection, lookup: VocabularyLookup, source: WordSource) => Promise<void>; onVocabularySpeak?: (term: string) => void; onVocabularyOpenSettings?: () => void }
 
@@ -149,7 +150,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     <button className={`difficulty-toggle ${currentSegment?.isDifficult ? 'is-marked' : ''}`} type="button" aria-label={currentSegment?.isDifficult ? '取消难句收藏' : '收藏为难句'} aria-pressed={Boolean(currentSegment?.isDifficult)} onClick={markDifficult}><span>{currentSegment?.isDifficult ? '已收藏' : '收藏难句'}</span><svg className="bookmark-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 3.5h10v17l-5-3.4-5 3.4Z" /></svg></button>
     <section className={`sentence-stage ${needsHelp ? 'has-help' : ''}`}>
       {!needsHelp ? <div className="listen-prompt" aria-hidden="true"><span>◉</span><i /><i /><i /></div> : <>
-        <nav className="content-switches help-tabs" aria-label="显示辅助内容"><button className={helpOptions.analysis ? 'active' : ''} aria-pressed={helpOptions.analysis} onClick={() => toggleHelp('analysis')}>解析</button><button className={helpOptions.translation ? 'active' : ''} aria-pressed={helpOptions.translation} onClick={() => toggleHelp('translation')}>翻译</button><button className={helpOptions.chunks ? 'active' : ''} aria-pressed={helpOptions.chunks} onClick={() => toggleHelp('chunks')}>意群</button></nav>
+        <SentenceSupportControls state={helpOptions} onChange={(state) => setHelpOptions(state)} />
         <div className="sentence-help">
           {helpOptions.chunks
             ? <p className="sentence-transcript sentence-chunks" onMouseUp={selectVocabulary}>{currentSegment?.text.split(/([,;:.!?]\s*)/).filter(Boolean).map((chunk, index) => <mark key={`${chunk}-${index}`}>{chunk}</mark>)}</p>

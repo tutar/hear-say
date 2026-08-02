@@ -3,6 +3,7 @@ import { SelectionTranslator } from '../src/features/library/SelectionTranslator
 import type { WordSource } from '../src/domain/types'
 import type { VocabularyLookup, VocabularySelection } from '../src/services/vocabulary-service'
 import type { VocabularyMessage, VocabularyMessageResponse } from '../src/services/vocabulary-messages'
+import { createVocabularyPopupBoundary, vocabularyResponse } from '../src/services/vocabulary-popup-boundary'
 
 const styles = `
 :host{all:initial}.hs-layer{position:fixed;z-index:2147483647;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#27312e}button{font:inherit;cursor:pointer}.selection-translate-trigger>button{padding:8px 13px;border:1px solid #b8d1c7;border-radius:8px;background:#173e36;color:white}.selection-translation{width:320px;padding:16px 18px 18px;border:1px solid #cfe0d9;border-radius:14px;background:#fffefb;box-shadow:0 18px 45px #173e3638;touch-action:none}.selection-translation-drag-handle{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:move;user-select:none}.selection-translation.is-dragging .selection-translation-drag-handle{cursor:grabbing}.selection-brand-lockup,.selection-word-identity,.selection-translation-actions,.selection-dictionary header,.selection-dictionary header>div{display:flex;align-items:center;gap:8px}.selection-brand-lockup{color:#173e36;font-size:15px;font-weight:700}.brand-mark{display:flex;align-items:center;justify-content:center;gap:2px;width:28px;height:28px;border-radius:50%;background:#173e36}.brand-mark i{display:block;width:2px;border-radius:2px;background:#b9e5d3}.brand-mark i:nth-child(1),.brand-mark i:nth-child(4){height:7px}.brand-mark i:nth-child(2){height:17px}.brand-mark i:nth-child(3){height:12px}.selection-word-identity{margin:20px 0 8px}.selection-word-identity strong{color:#173e36;font-size:30px}.selection-word-identity span{color:#71817b}.selection-icon-button,.selection-close-button{display:inline-grid;width:36px;height:36px;place-items:center;border:0;border-radius:8px;background:#edf1ef;color:#52635e}.speaker-icon,.copy-icon{width:18px;height:18px;fill:currentColor}.speaker-icon .speaker-wave,.copy-icon{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.selection-close-button{background:transparent;font-size:24px}.selection-add-button{min-height:36px;padding:8px 11px;border:0;border-radius:8px;background:#173e36;color:#fff;font-weight:700}.selection-definition,.selection-example p{margin:8px 0;line-height:1.55}.selection-definition strong{margin-right:5px;color:#397966}.selection-example{margin-bottom:14px}.selection-example p+p{color:#71817b}.selection-example mark{background:#ffd7e7}.selection-dictionary{padding:14px;border-radius:12px;background:#f1f6f3}.selection-dictionary header{justify-content:space-between}.selection-dictionary header strong{font-size:17px}.selection-dictionary p{margin:10px 0 0;line-height:1.65}
@@ -12,8 +13,7 @@ const selectionStyles = styles.replace('.selection-close-button{background:trans
 
 async function send<T>(message: VocabularyMessage): Promise<T> {
   const response = await browser.runtime.sendMessage(message) as VocabularyMessageResponse<T>
-  if (!response.ok) throw new Error(response.error)
-  return response.data
+  return vocabularyResponse(response)
 }
 
 export default defineContentScript({
@@ -50,7 +50,8 @@ export default defineContentScript({
       root = createRoot(mount)
       const selected: VocabularySelection = { term, sentence }
       const source: WordSource = { kind: 'web', title: document.title || location.hostname, url: location.href }
-      root.render(<SelectionTranslator selection={selected} onLookup={(value) => send<VocabularyLookup>({ type: 'vocabulary.lookup', selection: value })} onAdd={(lookup) => send({ type: 'vocabulary.add', selection: selected, lookup, source })} onCheckSaved={() => send<boolean>({ type: 'vocabulary.status', selection: selected, source })} onSpeak={(word) => { void send({ type: 'vocabulary.speak', term: word }) }} onOpenSettings={() => { void send({ type: 'vocabulary.openSettings' }) }} onClose={close} />)
+      const popup = createVocabularyPopupBoundary(send, selected, source)
+      root.render(<SelectionTranslator selection={selected} onLookup={() => popup.lookup()} onAdd={popup.add} onCheckSaved={popup.isSaved} onSpeak={(word) => { void popup.speak(word) }} onOpenSettings={() => { void send({ type: 'vocabulary.openSettings' }) }} onClose={close} />)
     })
   },
 })
