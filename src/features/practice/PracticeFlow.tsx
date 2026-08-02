@@ -6,6 +6,7 @@ import { SelectionTranslator } from '../library/SelectionTranslator'
 import type { WordSource } from '../../domain/types'
 import type { VocabularyLookup, VocabularySelection } from '../../services/vocabulary-service'
 import { PlaybackRateSelect, PlayGlyph, StepGlyph } from './PlayerControls'
+import { useListeningSession } from './useListeningSession'
 
 type Props = { material: Material; segments: Segment[]; onComplete: (material: Material) => void; onSegmentsSaved?: (segments: Segment[]) => void | Promise<void>; onSentenceEditChange?: (dirty: boolean) => void; onCompleteReview?: (material: Material) => void; onReviewStageComplete?: () => void; onPlaybackChange?: (playing: boolean) => void; reviewStages?: ReviewStage[]; difficultSegmentIds?: string[]; editorOnly?: boolean; onExit?: () => void; navigation?: ReactNode; onVocabularyLookup?: (selection: VocabularySelection) => Promise<VocabularyLookup>; onVocabularyAdd?: (selection: VocabularySelection, lookup: VocabularyLookup, source: WordSource) => Promise<void>; onVocabularySpeak?: (term: string) => void; onVocabularyOpenSettings?: () => void }
 
@@ -50,6 +51,8 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   const fullPlayRef = useRef(false)
   const [vocabularySelection, setVocabularySelection] = useState<VocabularySelection | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
+  const currentSegment = segments[segmentIndex] ?? null
+  const listening = useListeningSession(segments, segmentIndex, currentSegment?.startSeconds ?? 0, rate, loopSegment ? 'sentence' : 'off')
   const audioUrl = useMemo(() => URL.createObjectURL(material.audioBlob), [material.audioBlob])
 
   useEffect(() => () => URL.revokeObjectURL(audioUrl), [audioUrl])
@@ -57,7 +60,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   useEffect(() => { if (stage === 'shadowing' && firstRoundDifficultIds.length === 0) setFirstRoundDifficultIds(segments.filter((segment) => segment.isDifficult).map((segment) => segment.id)) }, [stage, segments, firstRoundDifficultIds.length])
   useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = rate }, [rate])
   useEffect(() => {
-    const audio = audioRef.current
+    const audio = (stage === 'intensive_listen' ? listening.audioRef : audioRef).current
     if (!audio || !activeSegment) return
     const stopAtSegmentEnd = () => {
       if (audio.currentTime < activeSegment.endSeconds) return
@@ -68,10 +71,10 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     }
     audio.addEventListener('timeupdate', stopAtSegmentEnd)
     return () => audio.removeEventListener('timeupdate', stopAtSegmentEnd)
-  }, [activeSegment, loopSegment])
+  }, [activeSegment, loopSegment, stage])
 
   function playSegment(segment: Segment) {
-    const audio = audioRef.current
+    const audio = (stage === 'intensive_listen' ? listening.audioRef : audioRef).current
     if (!audio) return
     setActiveSegment(segment)
     fullPlayRef.current = true
@@ -79,7 +82,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     void audio.play().catch(() => undefined)
   }
   function togglePlayback() {
-    const audio = audioRef.current
+    const audio = (stage === 'intensive_listen' ? listening.audioRef : audioRef).current
     if (!audio || !currentSegment) return
     if (isPlaying) audio.pause()
     else {
@@ -103,7 +106,6 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
     onComplete(updated)
   }
 
-  const currentSegment = segments[segmentIndex] ?? null
   const currentIntensiveProgress = currentSegment ? intensiveProgress[currentSegment.id] ?? { completed: 0, skipped: false } : { completed: 0, skipped: false }
   const canLeaveCurrent = currentIntensiveProgress.completed >= 3 || currentIntensiveProgress.skipped
   const allIntensiveComplete = segments.every((segment) => { const progress = intensiveProgress[segment.id]; return progress?.completed === 3 || progress?.skipped })
@@ -134,7 +136,7 @@ export function PracticeFlow({ material, segments, onComplete, onSegmentsSaved, 
   if (stage === 'complete') return <section className="practice-flow completion-card"><p className="eyebrow">{onCompleteReview ? '到期复习' : '首轮完成'}</p><h2>{onCompleteReview ? '完成这一轮复习' : labels.complete}</h2><p>{onCompleteReview ? '这会按既定间隔安排下一次复习。' : `下次复习：${material.nextReviewAt ?? '已安排'}`}</p>{onCompleteReview && <button className="review-complete-action" type="button" onClick={() => onCompleteReview(material)}>完成本次复习</button>}</section>
 
   if (stage === 'intensive_listen') return <main className="intensive-listening">
-    <audio ref={audioRef} src={audioUrl} onPlay={() => { setIsPlaying(true); onPlaybackChange?.(true) }} onPause={() => { setIsPlaying(false); onPlaybackChange?.(false) }} onSeeking={() => {
+    <audio ref={(node) => { listening.audioRef.current = node; audioRef.current = node }} src={audioUrl} onPlay={() => { listening.dispatch({ type: 'play' }); setIsPlaying(true); onPlaybackChange?.(true) }} onPause={() => { listening.dispatch({ type: 'pause' }); setIsPlaying(false); onPlaybackChange?.(false) }} onSeeking={() => {
       const audio = audioRef.current
       if (!audio || !currentSegment || Math.abs(audio.currentTime - currentSegment.startSeconds) > .15) fullPlayRef.current = false
     }} onEnded={() => setIsPlaying(false)} />

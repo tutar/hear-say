@@ -4,6 +4,7 @@ export const DEFAULT_FREE_LISTENING_PREFERENCES: FreeListeningPreferences = {
   id: 'global',
   viewMode: 'single',
   textVisible: true,
+  maskMode: 'all',
   loopMode: 'off',
   playbackRate: 1,
   analysisVisible: false,
@@ -12,7 +13,7 @@ export const DEFAULT_FREE_LISTENING_PREFERENCES: FreeListeningPreferences = {
 }
 
 export function normalizeFreeListeningPreferences(preferences: FreeListeningPreferences): FreeListeningPreferences {
-  return { ...preferences, playbackRate: Math.min(2, Math.max(0.5, Math.round(preferences.playbackRate * 10) / 10)) }
+  return { ...preferences, maskMode: preferences.maskMode ?? 'all', playbackRate: Math.min(2, Math.max(0.5, Math.round(preferences.playbackRate * 10) / 10)) }
 }
 
 export function moveFreeListeningCursor(index: number, count: number, loopMode: FreeListeningLoopMode, direction: -1 | 1): { index: number; continuePlaying: boolean } {

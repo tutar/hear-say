@@ -15,10 +15,10 @@ describe('FreeListening', () => {
     render(<FreeListening material={material} segments={segments} preferences={DEFAULT_FREE_LISTENING_PREFERENCES} progress={undefined} onPreferencesChange={vi.fn()} onProgressChange={vi.fn()} />)
     expect(screen.getByText('How are you doing today?')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '解析' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '隐藏文本' }))
+    fireEvent.click(screen.getByRole('button', { name: '隐藏字幕' }))
     expect(screen.queryByText('How are you doing today?')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '解析' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '显示文本' }))
+    fireEvent.click(screen.getByRole('button', { name: '偷看字幕' }))
     expect(screen.getByRole('button', { name: '解析' })).toBeInTheDocument()
   })
 
@@ -27,5 +27,14 @@ describe('FreeListening', () => {
     fireEvent.click(screen.getByRole('button', { name: '每句列表' }))
     fireEvent.click(screen.getByRole('button', { name: /I am doing well/ }))
     expect(screen.getByRole('button', { name: /I am doing well/ })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('region', { name: '句子详情' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '关闭句子详情' }))
+    expect(screen.queryByRole('region', { name: '句子详情' })).not.toBeInTheDocument()
+  })
+
+  it('labels the same template by its entry mode', () => {
+    render(<FreeListening mode="blind" material={material} segments={segments} preferences={DEFAULT_FREE_LISTENING_PREFERENCES} progress={undefined} onPreferencesChange={vi.fn()} onProgressChange={vi.fn()} />)
+    expect(screen.getByText('全文盲听')).toBeInTheDocument()
+    expect(screen.getByText('Blind listening')).toBeInTheDocument()
   })
 })

@@ -10,6 +10,7 @@ export type FreeListeningPreferences = {
   id: 'global'
   viewMode: 'single' | 'list'
   textVisible: boolean
+  maskMode: 'all' | 'difficult'
   loopMode: FreeListeningLoopMode
   playbackRate: number
   analysisVisible: boolean
