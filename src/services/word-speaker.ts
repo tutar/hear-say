@@ -10,7 +10,7 @@ export class WordSpeaker {
 
   private setActive(term: string | null) { this.activeTerm = term; this.onChange(term) }
 
-  async toggle(term: string): Promise<string | null> {
+  async toggle(term: string, lang = 'en-US'): Promise<string | null> {
     if (this.activeTerm === term) {
       this.engine.stop()
       this.setActive(null)
@@ -18,7 +18,7 @@ export class WordSpeaker {
     }
     if (this.activeTerm) this.engine.stop()
     this.setActive(term)
-    await this.engine.speak(term, { lang: 'en-US', enqueue: false, onEvent: (event) => { if (['end', 'error', 'cancelled', 'interrupted'].includes(event.type)) this.setActive(null) } })
+    await this.engine.speak(term, { lang, enqueue: false, onEvent: (event) => { if (['end', 'error', 'cancelled', 'interrupted'].includes(event.type)) this.setActive(null) } })
     return term
   }
 

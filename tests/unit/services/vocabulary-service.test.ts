@@ -9,7 +9,7 @@ describe('VocabularyService.lookup', () => {
   it('returns a contextual Chinese explanation for a selected English term', async () => {
     const result = await lookupVocabulary(
       { term: 'record', sentence: 'Please record a short message.' },
-      { explain: async () => ({ term: 'record', ipa: '/rɪˈkɔːrd/', partOfSpeech: '动词', meaningZh: '录制', contextExplanationZh: '这里表示把声音保存下来。' }) },
+      { explain: async () => ({ term: 'record', ipa: '/rɪˈkɔːrd/', partOfSpeech: '动词', meaningZh: '录制', definitionZh: '保存声音。', exampleSentenceEn: 'Record a message.', exampleSentenceZh: '录一段留言。', contextExplanationZh: '这里表示把声音保存下来。' }) },
     )
 
     expect(result).toEqual({
@@ -18,6 +18,9 @@ describe('VocabularyService.lookup', () => {
       ipa: '/rɪˈkɔːrd/',
       partOfSpeech: '动词',
       meaningZh: '录制',
+      definitionZh: '保存声音。',
+      exampleSentenceEn: 'Record a message.',
+      exampleSentenceZh: '录一段留言。',
       contextExplanationZh: '这里表示把声音保存下来。',
     })
   })
@@ -32,7 +35,7 @@ describe('VocabularyService.lookup', () => {
   })
 
   it('reuses a successful lookup for the same term and sentence', async () => {
-    const explain = vi.fn(async () => ({ term: 'record', ipa: '/rɪˈkɔːrd/', partOfSpeech: '动词', meaningZh: '录制', contextExplanationZh: '保存声音。' }))
+    const explain = vi.fn(async () => ({ term: 'record', ipa: '/rɪˈkɔːrd/', partOfSpeech: '动词', meaningZh: '录制', definitionZh: '保存声音。', exampleSentenceEn: 'Record a message.', exampleSentenceZh: '录一段留言。', contextExplanationZh: '保存声音。' }))
     const service = new VocabularyService(new WordRepository(), { explain })
     const selection = { term: 'record', sentence: 'Please record a message.' }
 

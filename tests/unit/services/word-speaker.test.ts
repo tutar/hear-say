@@ -24,4 +24,11 @@ describe('WordSpeaker', () => {
     expect(speaker.active).toBeNull()
     expect(onChange).toHaveBeenLastCalledWith(null)
   })
+
+  it('speaks UI translations with the requested locale', async () => {
+    const speak = vi.fn(async () => undefined)
+    const speaker = new WordSpeaker({ speak, stop: vi.fn() })
+    await speaker.toggle('词典', 'zh-CN')
+    expect(speak).toHaveBeenCalledWith('词典', expect.objectContaining({ lang: 'zh-CN' }))
+  })
 })

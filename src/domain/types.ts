@@ -128,6 +128,9 @@ export type WordContext = {
   ipa: string
   partOfSpeech: string
   meaningZh: string
+  definitionZh?: string
+  exampleSentenceEn?: string
+  exampleSentenceZh?: string
   contextExplanationZh: string
   sentence: string
   source: WordSource
@@ -149,6 +152,9 @@ export type VocabularyCacheEntry = {
   ipa: string
   partOfSpeech: string
   meaningZh: string
+  definitionZh: string
+  exampleSentenceEn: string
+  exampleSentenceZh: string
   contextExplanationZh: string
   updatedAt: string
 }

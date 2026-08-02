@@ -8,6 +8,9 @@ export type NewWordContext = {
   ipa: string
   partOfSpeech: string
   meaningZh: string
+  definitionZh?: string
+  exampleSentenceEn?: string
+  exampleSentenceZh?: string
   contextExplanationZh: string
   sentence: string
   source: WordSource
@@ -37,12 +40,16 @@ export class WordRepository {
     await db.wordEntries.add(entry)
     return entry
   }
+  async hasContext(input: Pick<NewWordContext, 'normalizedTerm' | 'sentence' | 'source'>): Promise<boolean> {
+    const existing = await db.wordEntries.where('normalizedTerm').equals(input.normalizedTerm).first()
+    return Boolean(existing?.contexts.some((context) => context.sentence === input.sentence && sourceKey(context.source) === sourceKey(input.source)))
+  }
 
   async listEntries(): Promise<WordEntry[]> { return db.wordEntries.orderBy('lastSeenAt').reverse().toArray() }
   async getEntry(id: string): Promise<WordEntry | null> { return (await db.wordEntries.get(id)) ?? null }
   async getLookup(selection: VocabularySelection): Promise<VocabularyLookup | null> {
     const cached = await db.wordLookups.get(lookupKey(selection))
-    if (!cached) return null
+    if (!cached || typeof cached.definitionZh !== 'string' || typeof cached.exampleSentenceEn !== 'string' || typeof cached.exampleSentenceZh !== 'string') return null
     const { key: _key, sentence: _sentence, updatedAt: _updatedAt, ...lookup } = cached
     return lookup
   }
@@ -56,5 +63,8 @@ const sourceKey = (source: WordSource) => source.kind === 'web' ? `web:${source.
 const lookupKey = (selection: VocabularySelection) => `${selection.term.trim().toLowerCase()}\n${selection.sentence.trim()}`
 const toContext = (input: NewWordContext, createdAt: string) => ({
   id: crypto.randomUUID(), ipa: input.ipa, partOfSpeech: input.partOfSpeech, meaningZh: input.meaningZh,
+  ...(input.definitionZh ? { definitionZh: input.definitionZh } : {}),
+  ...(input.exampleSentenceEn ? { exampleSentenceEn: input.exampleSentenceEn } : {}),
+  ...(input.exampleSentenceZh ? { exampleSentenceZh: input.exampleSentenceZh } : {}),
   contextExplanationZh: input.contextExplanationZh, sentence: input.sentence, source: input.source, createdAt,
 })

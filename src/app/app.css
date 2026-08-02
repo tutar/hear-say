@@ -263,17 +263,40 @@ h3 { font-weight: 600; letter-spacing: -.01em; }
 .ai-service-settings .asr-settings { margin-top: 0; padding: 0; border: 0; box-shadow: none; }
 .settings-actions { grid-column: 1 / -1; display: flex; gap: .6rem; }
 .settings-actions button + button { border: 1px solid #bed0c9; background: #edf6f2; color: #173e36; }
-.practice-selection-translation { position: sticky; z-index: 8; bottom: 1rem; width: min(100%, 24rem); margin: 1rem auto 0; }
+.practice-selection-translation { position: sticky; z-index: 8; bottom: 1rem; width: min(100%, 34rem); margin: 1rem auto 0; }
 .selection-translate-trigger > button { padding: .5rem .8rem; border: 0; border-radius: .45rem; background: #173e36; color: #fff; }
-.selection-translation { padding: 1rem; border: 1px solid #cfe0d9; border-radius: .8rem; background: #fff; box-shadow: 0 14px 32px rgb(23 62 54 / 16%); }
-.selection-translation header, .selection-translation footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.selection-translation header strong, .selection-translation header span { display: block; }
-.selection-translation header span { color: #71817b; font-size: .8rem; }
-.selection-translation header button { border: 0; background: transparent; }
-.selection-translation p { margin: .75rem 0; }
-.selection-translation small { color: #84928d; font-size: .7rem; }
-.selection-translation footer { margin-top: 1rem; }
-.selection-translation footer button { padding: .5rem .7rem; border: 1px solid #cfe0d9; border-radius: .45rem; background: #edf6f2; color: #173e36; }
+.selection-translation { position: relative; width: min(100%, 34rem); padding: 1rem 1.1rem 1.1rem; border: 1px solid #cfe0d9; border-radius: 1rem; background: #fffefb; box-shadow: 0 18px 42px rgb(23 62 54 / 18%); touch-action: none; }
+.selection-translation-drag-handle { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; cursor: move; user-select: none; }
+.selection-translation-drag-handle:active, .selection-translation.is-dragging .selection-translation-drag-handle { cursor: grabbing; }
+.selection-brand-lockup, .selection-word-identity, .selection-translation-actions, .selection-dictionary header, .selection-dictionary header > div { display: flex; align-items: center; gap: .65rem; }
+.selection-brand-lockup { color: #173e36; font-size: .95rem; letter-spacing: -.02em; }
+.selection-brand-lockup .brand-mark { width: 2rem; height: 2rem; gap: 2px; }
+.selection-brand-lockup .brand-mark i { width: 2px; }
+.selection-brand-lockup .brand-mark i:nth-child(1), .selection-brand-lockup .brand-mark i:nth-child(4) { height: .4rem; }
+.selection-brand-lockup .brand-mark i:nth-child(2) { height: .9rem; }
+.selection-brand-lockup .brand-mark i:nth-child(3) { height: .65rem; }
+.selection-word-identity { margin: 1.25rem 0 .65rem; }
+.selection-word-identity strong { color: #173e36; font-size: 2rem; letter-spacing: -.04em; }
+.selection-word-identity span { color: #71817b; font-size: 1rem; }
+.selection-word-identity .selection-icon-button { margin-left: .15rem; }
+.selection-icon-button, .selection-close-button { display: inline-grid; width: 2.25rem; height: 2.25rem; place-items: center; border: 0; border-radius: .5rem; background: #edf1ef; color: #52635e; cursor: pointer; }
+.selection-icon-button .speaker-icon { width: 1.1rem; height: 1.1rem; }
+.copy-icon { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentcolor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.selection-close-button { background: transparent; font-size: 1.5rem; }
+.selection-add-button { min-height: 2.35rem; padding: .55rem .8rem; border: 0; border-radius: .55rem; background: #173e36; color: #fff; font-weight: 750; white-space: nowrap; }
+.selection-add-button:disabled { opacity: .75; }
+.selection-definition { margin: .2rem 0 1rem; color: #71817b; font-size: .92rem; line-height: 1.5; }
+.selection-definition strong { display: inline-block; margin-right: .35rem; color: #397966; font-size: .9rem; font-weight: 800; }
+.selection-example { margin: 0 0 1rem; padding: .8rem .95rem; border: 1px solid #e1ebe6; border-radius: .75rem; background: #fbfcfb; color: #52635e; font-size: .92rem; line-height: 1.55; }
+.selection-example p { margin: .35rem 0; }
+.selection-example p + p { color: #71817b; }
+.selection-example mark { padding: 0 .08em; background: transparent; color: #c04c78; font-weight: 800; text-decoration: underline; text-decoration-thickness: .12em; text-underline-offset: .16em; }
+.selection-dictionary { margin-top: .15rem; padding: 1rem; border: 1px solid #b9e5d3; border-radius: .85rem; background: #f1f6f3; box-shadow: 0 8px 20px rgb(23 62 54 / 8%); }
+.selection-dictionary header { justify-content: space-between; }
+.selection-dictionary header strong { color: #173e36; font-size: 1.25rem; }
+.selection-dictionary p { margin: .8rem 0 0; color: #52635e; line-height: 1.65; }
+.selection-error { display: flex; align-items: center; gap: .5rem; margin: .75rem 0 0; color: #a44d43; font-size: .8rem; }
+.selection-retry { display: inline-grid; width: 1.75rem; height: 1.75rem; place-items: center; border: 0; border-radius: 50%; background: #edf6f2; color: #173e36; font-size: 1.1rem; cursor: pointer; }
 .material-overview { --material-row-height: 6.25rem; width: min(100%, 1040px); min-height: calc(100vh - 6rem); margin: 0 auto; padding: 1rem clamp(1rem, 5vw, 4rem) 6.5rem; color: #27312e; }
 .overview-nav, .overview-summary, .learning-map { width: 100%; }
 .overview-nav { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .8rem; min-height: 3.5rem; padding-bottom: .8rem; border-bottom: 1px solid #dce4e0; text-align: left; }
@@ -477,6 +500,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .settings-page { margin-inline: auto; }
 }
 @media (max-width: 640px) {
+  .practice-selection-translation { position: fixed; right: .75rem; bottom: .75rem; left: .75rem; width: auto; margin: 0; }
+  .selection-translation { width: 100%; max-height: min(78dvh, 38rem); overflow-y: auto; }
+  .selection-word-heading strong { font-size: 1.3rem; }
+  .selection-add-button { padding-inline: .6rem; font-size: .78rem; }
   .time-summary { grid-template-columns: 1fr; }
   .review-interval { grid-template-columns: 4.5rem 1fr 5rem 2rem; gap: .35rem; }
   .app-shell { padding: 1rem .9rem 3rem; }

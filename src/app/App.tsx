@@ -195,9 +195,9 @@ export function App() {
     await createDeepSeekExplainer(settings).explain({ term: 'context', sentence: 'Context helps explain meaning.' })
   }
 
-  async function toggleWordSpeech(term: string) {
+  async function toggleWordSpeech(term: string, lang = 'en-US') {
     if (!wordSpeaker) return
-    const next = await wordSpeaker.toggle(term)
+    const next = await wordSpeaker.toggle(term, lang)
     setActiveSpokenTerm(next)
   }
 

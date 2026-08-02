@@ -4,6 +4,9 @@ export type VocabularyExplanation = {
   ipa: string
   partOfSpeech: string
   meaningZh: string
+  definitionZh: string
+  exampleSentenceEn: string
+  exampleSentenceZh: string
   contextExplanationZh: string
 }
 export type VocabularyLookup = VocabularyExplanation & { normalizedTerm: string }

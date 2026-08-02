@@ -175,6 +175,9 @@ export default defineBackground(() => {
         const entry = await repository.addContext({ ...message.lookup, sentence: message.selection.sentence, source: message.source })
         return { ok: true, data: entry }
       }
+      if (message.type === 'vocabulary.status') {
+        return { ok: true, data: await repository.hasContext({ normalizedTerm: message.selection.term.trim().toLowerCase(), sentence: message.selection.sentence, source: message.source }) }
+      }
       if (message.type === 'vocabulary.speak') {
         browser.tts.stop()
         await browser.tts.speak(message.term, { lang: 'en-US', enqueue: false })
