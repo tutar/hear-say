@@ -357,7 +357,7 @@ h3 { font-weight: 600; letter-spacing: -.01em; }
 .free-sentence-detail header { display: flex; align-items: center; justify-content: space-between; color: #173e36; }
 .free-sentence-detail header button { width: 2rem; height: 2rem; border: 0; border-radius: 50%; background: transparent; color: #71817b; font-size: 1.4rem; cursor: pointer; }
 .free-sentence-detail > p { line-height: 1.6; }
-.sentence-support-panel { margin-top: .8rem; padding: 1rem; border: 1px solid #b9e5d3; border-radius: .85rem; background: #f1f6f3; }
+.sentence-support-panel { position: fixed; z-index: 20; inset: 5.5rem 1.5rem 7.5rem; max-width: 760px; margin: 0 auto; padding: clamp(1rem, 3vw, 2rem); overflow: auto; border: 1px solid #b9e5d3; border-radius: 1.1rem; background: #f1f6f3; box-shadow: 0 24px 70px rgb(23 62 54 / 24%); }
 .sentence-support-panel > header { display: flex; align-items: center; justify-content: space-between; color: #173e36; }
 .sentence-support-panel > header button { width: 2rem; height: 2rem; border: 0; border-radius: 50%; background: transparent; color: #71817b; font-size: 1.4rem; cursor: pointer; }
 .sentence-support-original { line-height: 1.65; }

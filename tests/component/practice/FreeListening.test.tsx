@@ -28,6 +28,7 @@ describe('FreeListening', () => {
     fireEvent.click(screen.getByRole('button', { name: /I am doing well/ }))
     expect(screen.getByRole('button', { name: /I am doing well/ })).toHaveAttribute('aria-current', 'true')
     expect(screen.getByRole('region', { name: '句子详情' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '句子详情' })).toHaveClass('sentence-support-panel')
     fireEvent.click(screen.getByRole('button', { name: '关闭句子详情' }))
     expect(screen.queryByRole('region', { name: '句子详情' })).not.toBeInTheDocument()
   })
