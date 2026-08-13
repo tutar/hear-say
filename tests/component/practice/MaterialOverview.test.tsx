@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { MaterialWithSegments } from '@/db/material-repository'
 import { MaterialOverview } from '@/features/practice/MaterialOverview'
 
@@ -14,10 +14,12 @@ const material: MaterialWithSegments = {
 }
 
 describe('MaterialOverview', () => {
+  afterEach(cleanup)
   it('summarizes progress and only continues when the learner asks', () => {
     const onContinue = vi.fn()
     const onFreeListen = vi.fn()
-    render(<MaterialOverview material={material} onBack={vi.fn()} onContinue={onContinue} onFreeListen={onFreeListen} />)
+    const onOpenStage = vi.fn()
+    render(<MaterialOverview material={material} onBack={vi.fn()} onContinue={onContinue} onFreeListen={onFreeListen} onOpenStage={onOpenStage} />)
     expect(screen.getByRole('heading', { name: 'The Art of Small Talk' })).toBeInTheDocument()
     expect(screen.getByText('3/4 完成')).toBeInTheDocument()
     expect(screen.getByText('1 个难句')).toBeInTheDocument()
@@ -26,5 +28,14 @@ describe('MaterialOverview', () => {
     expect(onContinue).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: '随心听' }))
     expect(onFreeListen).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: /全文盲听/ }))
+    expect(onOpenStage).toHaveBeenCalledWith('blind_listen')
+    expect(screen.getByRole('button', { name: /段落复述/ })).toBeEnabled()
+  })
+
+  it('shows an automatically passed empty shadowing stage as completed', () => {
+    render(<MaterialOverview material={{ ...material, firstRoundStage: 'retelling', segments: material.segments.map((segment) => ({ ...segment, isDifficult: false })) }} onBack={vi.fn()} onContinue={vi.fn()} onOpenStage={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /难句跟读/ })).toBeEnabled()
+    expect(screen.queryByText(/已跳过/)).not.toBeInTheDocument()
   })
 })

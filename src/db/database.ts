@@ -9,6 +9,7 @@ export type PersistedRecordingChunk = {
   sampleRate: number
   samples: number[]
 }
+export type CachedSpeechComponent = { url: string; archive: ArrayBuffer; cachedAt: string }
 
 export class HearSayDatabase extends Dexie {
   materials!: EntityTable<Material, 'id'>
@@ -23,6 +24,7 @@ export class HearSayDatabase extends Dexie {
   freeListeningProgress!: EntityTable<FreeListeningProgress, 'materialId'>
   recordingChunks!: EntityTable<PersistedRecordingChunk, 'id'>
   recordingDrafts!: EntityTable<RecordingDraft, 'id'>
+  speechComponents!: EntityTable<CachedSpeechComponent, 'url'>
 
   constructor() {
     super('hear-say')
@@ -74,6 +76,16 @@ export class HearSayDatabase extends Dexie {
       learningSessions: 'id,materialId,status,ownerTabId,startedAt', learningTimeSlices: 'id,sessionId,materialId,startedAt',
       freeListeningPreferences: 'id', freeListeningProgress: 'materialId,updatedAt',
       recordingChunks: 'id,sessionId,[sessionId+sequence]', recordingDrafts: 'id,sessionId,state,updatedAt',
+    })
+    this.version(8).stores({
+      materials: 'id,status,nextReviewAt,updatedAt,isFavorite,*tags',
+      segments: 'id,materialId,[materialId+order],isDifficult',
+      wordEntries: 'id,&normalizedTerm,lastSeenAt', wordLookups: 'key,updatedAt',
+      reviewPlans: 'id,&version,createdAt', reviewSchedules: 'id,&materialId,nextReviewAt,status',
+      learningSessions: 'id,materialId,status,ownerTabId,startedAt', learningTimeSlices: 'id,sessionId,materialId,startedAt',
+      freeListeningPreferences: 'id', freeListeningProgress: 'materialId,updatedAt',
+      recordingChunks: 'id,sessionId,[sessionId+sequence]', recordingDrafts: 'id,sessionId,state,updatedAt',
+      speechComponents: '&url,cachedAt',
     })
   }
 }

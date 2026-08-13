@@ -10,6 +10,8 @@ describe('workspace routes', () => {
     ['#/materials/m1', { kind: 'material', materialId: 'm1' }],
     ['#/materials/m1/practice', { kind: 'practice', materialId: 'm1' }],
     ['#/materials/m1/free-listening', { kind: 'free-listening', materialId: 'm1' }],
+    ['#/materials/m1/stages/blind-listen', { kind: 'stage-review', materialId: 'm1', stage: 'blind_listen' }],
+    ['#/materials/m1/stages/intensive-listen', { kind: 'stage-review', materialId: 'm1', stage: 'intensive_listen' }],
     ['#/materials/m1/review', { kind: 'review', materialId: 'm1' }],
     ['#/materials/m1/subtitles', { kind: 'subtitles', materialId: 'm1' }],
     ['#/recording-drafts/draft%2F1', { kind: 'recording-draft', draftId: 'draft/1' }],

@@ -19,4 +19,11 @@ describe('WordDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: '打开来源 output1.wav' }))
     expect(onOpenSource).toHaveBeenCalledWith(entry.contexts[1].source)
   })
+
+  it('labels a manually added word without presenting a source action', () => {
+    const manual: WordEntry = { ...entry, contexts: [{ ...entry.contexts[0], source: { kind: 'manual', title: '手动添加', hasUserContext: false } }] }
+    render(<WordDetail entry={manual} activeTerm={null} onBack={vi.fn()} onSpeak={vi.fn()} onOpenSource={vi.fn()} />)
+    expect(screen.getByText('手动添加')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /打开来源/ })).not.toBeInTheDocument()
+  })
 })

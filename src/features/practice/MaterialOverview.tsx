@@ -3,7 +3,7 @@ import type { MaterialWithSegments } from '../../db/material-repository'
 import type { FirstRoundStage, ReviewOccurrence, ReviewSchedule } from '../../domain/types'
 import { EarIcon } from './EarIcon'
 
-type Props = { material: MaterialWithSegments; schedule?: ReviewSchedule; navigation?: ReactNode; onBack: () => void; onContinue: () => void; onFreeListen?: () => void }
+type Props = { material: MaterialWithSegments; schedule?: ReviewSchedule; navigation?: ReactNode; onBack: () => void; onContinue: () => void; onFreeListen?: () => void; onOpenStage?: (stage: FirstRoundStage) => void }
 const stages: Array<{ id: FirstRoundStage; label: string; description: string; mark: ReactNode }> = [
   { id: 'blind_listen', label: '全文盲听', description: '先完整听，感受整体难度和大意', mark: <EarIcon /> },
   { id: 'intensive_listen', label: '逐句精听', description: '逐句听懂，校对文本与时间轴', mark: '◉' },
@@ -15,7 +15,7 @@ const duration = (seconds: number | null) => seconds === null ? '--:--' : `${Mat
 const reviewStageNames = { blind_listen: '全文盲听', difficult_practice: '难句补练', retelling: '段落复述' } as const
 const intervalText = (occurrence: ReviewOccurrence) => `${occurrence.interval.value} ${occurrence.interval.unit === 'hour' ? '小时' : '天'}后`
 
-export function MaterialOverview({ material, schedule, navigation, onBack, onContinue, onFreeListen }: Props) {
+export function MaterialOverview({ material, schedule, navigation, onBack, onContinue, onFreeListen, onOpenStage }: Props) {
   const currentIndex = material.firstRoundStage === 'complete' ? stages.length : stages.findIndex((stage) => stage.id === material.firstRoundStage)
   const completed = Math.max(0, currentIndex)
   const progress = Math.round((completed / stages.length) * 100)
@@ -40,7 +40,7 @@ export function MaterialOverview({ material, schedule, navigation, onBack, onCon
         const isComplete = index < completed, isCurrent = index === currentIndex
         return <li key={stage.id} className={isComplete ? 'is-complete' : isCurrent ? 'is-current' : ''}>
           <span className="route-node" aria-hidden="true">{isComplete ? '✓' : index + 1}</span>
-          <article><span className="stage-mark" aria-hidden="true">{stage.mark}</span><div><h3>{stage.label}</h3><p>{stage.description}</p>{stage.id === 'intensive_listen' && difficultCount > 0 && <small>{difficultCount} 个难句</small>}</div></article>
+          <button className="learning-stage-card" type="button" disabled={!isComplete && !isCurrent} onClick={() => isCurrent ? onContinue() : onOpenStage?.(stage.id)}><span className="stage-mark" aria-hidden="true">{stage.mark}</span><div><h3>{stage.label}</h3><p>{stage.description}</p>{stage.id === 'intensive_listen' && difficultCount > 0 && <small>{difficultCount} 个难句</small>}</div></button>
         </li>
       })}</ol>
     </section>

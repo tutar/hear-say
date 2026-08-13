@@ -1,7 +1,8 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Material, Segment } from '@/domain/types'
 import { PracticeFlow } from '@/features/practice/PracticeFlow'
+import type { OralRecognitionListener, OralRecognizer } from '@/services/oral-recognition'
 
 const material: Material = {
   id: 'm1', title: 'Lesson', audioBlob: new Blob(['audio']), durationSeconds: 5, status: 'ready', transcriptionError: null,
@@ -25,6 +26,36 @@ describe('PracticeFlow', () => {
     expect(container.querySelector('audio')).toHaveProperty('playbackRate', 0.7)
   })
 
+  it('starts oral recognition after a difficult sentence finishes without marking it complete', async () => {
+    let listener: OralRecognitionListener | undefined
+    const recognizer: OralRecognizer = { start: vi.fn(async (next) => { listener = next }), stop: vi.fn() }
+    const difficult = { ...segments[0], isDifficult: true }
+    const onComplete = vi.fn()
+    const { container } = render(<PracticeFlow material={{ ...material, firstRoundStage: 'shadowing' }} segments={[difficult]} onComplete={onComplete} oralRecognizer={recognizer} />)
+    await screen.findByText('First transcript sentence')
+    const audio = container.querySelector('audio')!
+    audio.play = vi.fn(async () => undefined)
+    fireEvent.click(screen.getByRole('button', { name: '播放当前难句' }))
+    audio.currentTime = difficult.endSeconds
+    fireEvent.timeUpdate(audio)
+    await vi.waitFor(() => expect(recognizer.start).toHaveBeenCalled())
+    act(() => listener?.onFinal('First transcript sentence'))
+    expect(screen.getByText('相似度 100%')).toBeInTheDocument()
+    expect(screen.getByText('待练习')).toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('presents difficult-sentence repetition with the shared practice visual hierarchy', () => {
+    const difficult = { ...segments[0], isDifficult: true }
+    const { container } = render(<PracticeFlow material={{ ...material, firstRoundStage: 'shadowing' }} segments={[difficult]} onComplete={vi.fn()} />)
+
+    expect(container.querySelector('.difficult-practice > .practice-mode-header')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /难句复读\s*（首轮练习 正在练习 Lesson）/ })).toBeInTheDocument()
+    expect(screen.getByText('First transcript sentence')).toHaveClass('difficult-sentence-copy')
+    expect(screen.getByRole('button', { name: '跳过本句' })).toHaveClass('secondary-action')
+    expect(screen.getByRole('button', { name: '完成本句' })).toHaveClass('primary-action')
+  })
+
   it('keeps help separate from the difficult-sentence bookmark', () => {
     const onSegmentsSaved = vi.fn()
     const { container } = render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={segments} onComplete={vi.fn()} onSegmentsSaved={onSegmentsSaved} />)
@@ -37,11 +68,12 @@ describe('PracticeFlow', () => {
     expect(screen.getByRole('heading', { name: '语法' })).toBeInTheDocument()
     expect(screen.getByText('transcript')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '翻译' }))
-    expect(screen.getByRole('region', { name: '翻译' })).toHaveTextContent('当前材料没有可用翻译')
+    expect(screen.getByLabelText('翻译')).toHaveTextContent('当前材料没有可用翻译')
+    expect(screen.queryByRole('heading', { name: '翻译' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '重点词汇' })).toBeInTheDocument()
     expect(screen.getByText('First transcript sentence')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '翻译' }))
-    expect(screen.queryByRole('region', { name: '翻译' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('翻译')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '重点词汇' })).toBeInTheDocument()
     expect(screen.getByText('First transcript sentence')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '意群' }))
@@ -59,6 +91,24 @@ describe('PracticeFlow', () => {
     expect(screen.getByRole('button', { name: '播放当前句' }).querySelector('.play-mark')).toBeInTheDocument()
   })
 
+  it('still starts the four-second pause when a bookmark save refreshes the material during playback', async () => {
+    let resolveSave!: () => void
+    const save = new Promise<void>((resolve) => { resolveSave = resolve })
+    const onSegmentsSaved = vi.fn(() => save)
+    const view = render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={segments} onComplete={vi.fn()} onSegmentsSaved={onSegmentsSaved} />)
+    let audio = view.container.querySelector('audio')!
+    audio.play = vi.fn(async () => undefined)
+    fireEvent.click(screen.getByRole('button', { name: '播放当前句' }))
+    fireEvent.click(screen.getByRole('button', { name: '收藏为难句' }))
+    resolveSave()
+    await save
+    view.rerender(<PracticeFlow material={{ ...material, audioBlob: new Blob(['audio']), firstRoundStage: 'intensive_listen' }} segments={segments.map((segment) => ({ ...segment, isDifficult: true }))} onComplete={vi.fn()} onSegmentsSaved={onSegmentsSaved} />)
+    audio = view.container.querySelector('audio')!
+    audio.currentTime = 1
+    fireEvent.timeUpdate(audio)
+    expect(screen.getByRole('button', { name: '暂停倒计时' })).toHaveTextContent('4')
+  })
+
   it('offers the shared translator after a learner selects text in the intensive transcript', () => {
     vi.spyOn(window, 'getSelection').mockReturnValue({ toString: () => 'transcript' } as Selection)
     render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={segments} onComplete={vi.fn()} onVocabularyLookup={vi.fn()} onVocabularyAdd={vi.fn()} onVocabularySpeak={vi.fn()} />)
@@ -67,23 +117,66 @@ describe('PracticeFlow', () => {
     expect(screen.getByRole('button', { name: '翻译 transcript' })).toBeInTheDocument()
   })
 
-  it('enables the next sentence after three complete repetitions', () => {
+  it('persists bookmarks during intensive review and rolls back a failed save', async () => {
+    const onSegmentsSaved = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('无法保存收藏'))
+    render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={segments} retrospective onComplete={vi.fn()} onSegmentsSaved={onSegmentsSaved} />)
+    fireEvent.click(screen.getByRole('button', { name: '收藏为难句' }))
+    expect(await screen.findByRole('button', { name: '取消难句收藏' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '取消难句收藏' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('无法保存收藏')
+    expect(screen.getByRole('button', { name: '取消难句收藏' })).toBeInTheDocument()
+  })
+
+  it('keeps a normal completion action for an empty shadowing review and returns to overview', () => {
+    const onExit = vi.fn()
+    render(<PracticeFlow material={{ ...material, firstRoundStage: 'shadowing' }} segments={segments} retrospective onExit={onExit} onComplete={vi.fn()} />)
+    expect(screen.getByText('本轮没有收藏的难句。')).toBeInTheDocument()
+    const complete = screen.getByRole('button', { name: '完成难句跟读' })
+    expect(complete).toBeEnabled()
+    fireEvent.click(complete)
+    expect(onExit).toHaveBeenCalledOnce()
+  })
+
+  it('pauses for four seconds after one playback and then starts the next sentence', () => {
+    vi.useFakeTimers()
     const nextSegment: Segment = { id: 's2', materialId: 'm1', order: 1, startSeconds: 1, endSeconds: 2, text: 'Second sentence', isDifficult: false }
-    const { container } = render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={[...segments, nextSegment]} onComplete={vi.fn()} />)
+    const onIntensiveSegmentComplete = vi.fn()
+    const onIntensiveSegmentSkip = vi.fn()
+    const { container } = render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={[...segments, nextSegment]} onComplete={vi.fn()} onIntensiveSegmentComplete={onIntensiveSegmentComplete} onIntensiveSegmentSkip={onIntensiveSegmentSkip} />)
     const next = screen.getByRole('button', { name: '下一句' })
     const audio = container.querySelector('audio')!
     audio.play = vi.fn(async () => undefined)
-    expect(next).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: '播放当前句' }))
-    fireEvent.seeking(audio)
-    for (let repetition = 0; repetition < 3; repetition += 1) {
-      audio.currentTime = 1
-      fireEvent.timeUpdate(audio)
-    }
-    expect(next).toBeEnabled()
-    fireEvent.click(next)
+    audio.currentTime = 1
+    fireEvent.timeUpdate(audio)
+    expect(screen.getByRole('button', { name: '暂停倒计时' })).toHaveTextContent('4')
+    fireEvent.click(screen.getByRole('button', { name: '暂停倒计时' }))
+    act(() => vi.advanceTimersByTime(2_000))
+    expect(screen.getByRole('button', { name: '继续倒计时' })).toHaveTextContent('4')
+    fireEvent.click(screen.getByRole('button', { name: '继续倒计时' }))
+    act(() => vi.advanceTimersByTime(4_000))
     expect(screen.getByRole('button', { name: '上一句' })).toBeEnabled()
     expect(screen.getByRole('button', { name: '下一句' })).toBeDisabled()
+    expect(onIntensiveSegmentComplete).toHaveBeenCalledWith('s1')
+    expect(audio.play).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '上一句' }))
+    expect(onIntensiveSegmentSkip).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('finishes intensive listening after the final countdown and skips empty shadowing', () => {
+    vi.useFakeTimers()
+    const onComplete = vi.fn()
+    const { container } = render(<PracticeFlow material={{ ...material, firstRoundStage: 'intensive_listen' }} segments={segments} onComplete={onComplete} />)
+    const audio = container.querySelector('audio')!
+    audio.play = vi.fn(async () => undefined)
+    fireEvent.click(screen.getByRole('button', { name: '播放当前句' }))
+    audio.currentTime = 1
+    fireEvent.timeUpdate(audio)
+    act(() => vi.advanceTimersByTime(4_000))
+
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ firstRoundStage: 'retelling' }))
+    vi.useRealTimers()
   })
 
   it('shows learner-authored keyword prompts while retelling', () => {

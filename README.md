@@ -84,9 +84,15 @@ Hear & Say is currently distributed through GitHub Releases:
 1. Download `hear-say-vX.Y.Z-chrome.zip` from the latest [GitHub Release](https://github.com/tutar/hear-say/releases). GitHub's automatic “Source code” archives are not loadable extension packages.
 2. Extract the ZIP, open `chrome://extensions`, and enable **Developer mode**.
 3. Choose **Load unpacked** and select the extracted directory.
-4. Open **AI Services** from the Hear & Say avatar menu and configure transcription and vocabulary explanation.
+4. On first open, configure transcription and vocabulary explanation in **AI Services**. You can leave the page, but features that still lack configuration remain disabled.
 
-The transcription endpoint must support `POST /v1/audio/transcriptions`, timestamped `verbose_json` responses, and requests from a Chrome extension. If transcription fails, Hear & Say preserves the material and original audio so you can retry or import SRT/VTT subtitles.
+### Transcription setup
+
+AssemblyAI is the default provider. Create an account in the [AssemblyAI dashboard](https://www.assemblyai.com/dashboard), copy its API key into **AI Services**, choose Universal-3.5 Pro or Universal-2, and keep English selected unless you explicitly want automatic language detection. Hear & Say uploads the audio, submits a transcript, and polls AssemblyAI until its timestamped result is ready.
+
+To use another service, select **OpenAI compatible** and enter its Base URL, model, language, and optional API key. The endpoint must support `POST /audio/transcriptions` beneath that Base URL and return timestamped OpenAI `verbose_json`. For example, a local FunASR deployment might use Base URL `http://localhost:8021/v1` with a model such as `sensevoice`; the exact values and browser-access settings depend on that deployment.
+
+Chrome asks for access only to the selected endpoint. If a request is blocked, confirm that the service allows requests from a Chrome extension and that its address and network access are correct. A failed transcription preserves the material and original audio so you can retry with the same provider or import SRT/VTT subtitles; Hear & Say never switches providers silently.
 
 ## Local-first by design
 

@@ -7,6 +7,7 @@ export type WorkspacePlace =
   | { kind: 'material'; materialId: string }
   | { kind: 'practice'; materialId: string }
   | { kind: 'free-listening'; materialId: string }
+  | { kind: 'stage-review'; materialId: string; stage: 'blind_listen' | 'intensive_listen' | 'shadowing' | 'retelling' }
   | { kind: 'review'; materialId: string }
   | { kind: 'subtitles'; materialId: string }
   | { kind: 'recording-draft'; draftId: string }
@@ -28,6 +29,7 @@ export function formatWorkspacePlace(place: WorkspacePlace): string {
     case 'material': return `#/materials/${encodeURIComponent(place.materialId)}`
     case 'practice': return `#/materials/${encodeURIComponent(place.materialId)}/practice`
     case 'free-listening': return `#/materials/${encodeURIComponent(place.materialId)}/free-listening`
+    case 'stage-review': return `#/materials/${encodeURIComponent(place.materialId)}/stages/${place.stage.replaceAll('_', '-')}`
     case 'review': return `#/materials/${encodeURIComponent(place.materialId)}/review`
     case 'subtitles': return `#/materials/${encodeURIComponent(place.materialId)}/subtitles`
     case 'recording-draft': return `#/recording-drafts/${encodeURIComponent(place.draftId)}`
@@ -54,6 +56,10 @@ export function parseWorkspaceHash(hash: string): ParsedWorkspaceHash {
     if (parts.length === 3 && parts[2] === 'free-listening') return valid({ kind: 'free-listening', materialId })
     if (parts.length === 3 && parts[2] === 'review') return valid({ kind: 'review', materialId })
     if (parts.length === 3 && parts[2] === 'subtitles') return valid({ kind: 'subtitles', materialId })
+    if (parts.length === 4 && parts[2] === 'stages') {
+      const stage = parts[3].replaceAll('-', '_')
+      if (stage === 'blind_listen' || stage === 'intensive_listen' || stage === 'shadowing' || stage === 'retelling') return valid({ kind: 'stage-review', materialId, stage })
+    }
   }
   if (parts[0] === 'words' && parts.length === 2) {
     const wordId = decodeId(parts[1])

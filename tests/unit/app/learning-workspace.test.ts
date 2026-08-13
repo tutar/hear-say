@@ -87,6 +87,17 @@ describe('LearningWorkspace navigation', () => {
     workspace.stop()
   })
 
+  it('surfaces a non-blocking transcription warning after a successful import', async () => {
+    const workspace = new LearningWorkspace({ materialRepository: new MaterialRepository(), wordRepository: new WordRepository(), navigation: window })
+    await workspace.start()
+    await workspace.importAudio(new File(['audio'], 'lesson.wav'), 1, async (input) => {
+      input.onWarning?.('段落分组不可用，已保留原始句子。')
+      return [{ id: 's1', materialId: input.materialId, order: 0, startSeconds: 0, endSeconds: 1, text: 'Hello', isDifficult: false }]
+    })
+    expect(workspace.getState()).toMatchObject({ message: '段落分组不可用，已保留原始句子。' })
+    workspace.stop()
+  })
+
   it('keeps the current material visible while refreshing related data', async () => {
     const repository = new MaterialRepository()
     const pending = await repository.createPending({ title: 'lesson.wav', audioBlob: new Blob(['audio']), durationSeconds: 1 })
@@ -101,6 +112,20 @@ describe('LearningWorkspace navigation', () => {
     expect(workspace.getState().currentMaterial?.id).toBe(pending.id)
     finish(await new MaterialRepository().listMaterials())
     await refreshing
+    workspace.stop()
+  })
+
+  it('preserves the active audio blob when saving a difficult-sentence bookmark', async () => {
+    const repository = new MaterialRepository()
+    const pending = await repository.createPending({ title: 'lesson.wav', audioBlob: new Blob(['audio']), durationSeconds: 1 })
+    await repository.replaceSegments(pending.id, [{ id: 's1', materialId: pending.id, order: 0, startSeconds: 0, endSeconds: 1, text: 'Hello', isDifficult: false }])
+    const workspace = new LearningWorkspace({ materialRepository: repository, wordRepository: new WordRepository(), navigation: window })
+    await workspace.start()
+    await workspace.go({ kind: 'practice', materialId: pending.id })
+    const playingBlob = workspace.getState().currentMaterial!.audioBlob
+    await workspace.saveSegments(pending.id, workspace.getState().currentMaterial!.segments.map((segment) => ({ ...segment, isDifficult: true })))
+    expect(workspace.getState().currentMaterial?.audioBlob).toBe(playingBlob)
+    expect(workspace.getState().currentMaterial?.segments[0].isDifficult).toBe(true)
     workspace.stop()
   })
 })

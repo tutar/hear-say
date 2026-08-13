@@ -5,6 +5,8 @@ import type { Material, Segment, WordEntry } from '../domain/types'
 import { LibraryController, type Transcribe } from '../features/library/library-controller'
 import { formatWorkspacePlace, parseWorkspaceHash, type WorkspacePlace } from './workspace-routes'
 
+const firstRoundStages = ['blind_listen', 'intensive_listen', 'shadowing', 'retelling', 'complete'] as const
+
 type NavigationWindow = Pick<Window, 'location' | 'history' | 'addEventListener' | 'removeEventListener'>
 
 export type LearningWorkspaceState = {
@@ -93,7 +95,19 @@ export class LearningWorkspace {
   async setMaterialTags(materialId: string, tags: string[]): Promise<void> { await this.dependencies.materialRepository.setTags(materialId, tags); await this.refresh() }
   async resetMaterialProgress(materialId: string): Promise<void> { await this.dependencies.materialRepository.resetLearningProgress(materialId); await this.refresh() }
   async savePractice(material: Material): Promise<void> { await this.dependencies.materialRepository.saveMaterial(material); await this.refresh() }
-  async saveSegments(materialId: string, segments: Segment[]): Promise<void> { await this.dependencies.materialRepository.replaceSegments(materialId, segments); await this.refresh() }
+  async saveSegments(materialId: string, segments: Segment[]): Promise<void> {
+    await this.dependencies.materialRepository.replaceSegments(materialId, segments)
+    const saved = await this.dependencies.materialRepository.getMaterial(materialId)
+    if (!saved) throw new Error('material was not found')
+    const current = this.state.currentMaterial?.id === materialId
+      ? { ...saved, audioBlob: this.state.currentMaterial.audioBlob }
+      : this.state.currentMaterial
+    this.update({
+      currentMaterial: current,
+      materials: this.state.materials.map((material) => material.id === materialId ? { ...saved, audioBlob: material.audioBlob } : material),
+      dueMaterials: this.state.dueMaterials.map((material) => material.id === materialId ? { ...saved, audioBlob: material.audioBlob } : material),
+    })
+  }
   async completeReview(material: Material): Promise<void> {
     await this.dependencies.materialRepository.saveMaterial(advanceReview(material, new Date()))
     await this.refresh()
@@ -106,13 +120,14 @@ export class LearningWorkspace {
     this.update({ message: '正在转写', isImporting: true })
     let pendingId: string | null = null
     try {
-      const controller = new LibraryController(this.dependencies.materialRepository, transcribe)
+      let warning = ''
+      const controller = new LibraryController(this.dependencies.materialRepository, transcribe, (message) => { warning = message })
       const material = await controller.importAudio(file, durationSeconds, (pending) => {
         pendingId = pending.id
         this.setTranscriptionTask(pending.id, true)
         void this.refresh()
       })
-      this.update({ message: material.status === 'ready' ? '转写完成' : material.transcriptionError ?? '转写失败' })
+      this.update({ message: material.status === 'ready' ? warning || '转写完成' : material.transcriptionError ?? '转写失败' })
       await this.refresh()
       return material
     } finally {
@@ -126,8 +141,9 @@ export class LearningWorkspace {
     this.setTranscriptionTask(materialId, true)
     this.update({ message: '正在转写' })
     try {
-      const material = await new LibraryController(this.dependencies.materialRepository, transcribe).retry(materialId)
-      this.update({ message: material.status === 'ready' ? '转写完成' : material.transcriptionError ?? '转写失败' })
+      let warning = ''
+      const material = await new LibraryController(this.dependencies.materialRepository, transcribe, (message) => { warning = message }).retry(materialId)
+      this.update({ message: material.status === 'ready' ? warning || '转写完成' : material.transcriptionError ?? '转写失败' })
       await this.refresh()
       return material
     } finally { this.setTranscriptionTask(materialId, false) }
@@ -178,11 +194,14 @@ export class LearningWorkspace {
       currentMaterial = await this.dependencies.materialRepository.getMaterial(place.materialId)
       if (request !== this.resolution) return
       if (!currentMaterial) return this.recover({ kind: 'library' }, '该材料已不存在')
-      if ((place.kind === 'practice' || place.kind === 'review' || place.kind === 'free-listening') && currentMaterial.status !== 'ready') {
+      if ((place.kind === 'practice' || place.kind === 'review' || place.kind === 'free-listening' || place.kind === 'stage-review') && currentMaterial.status !== 'ready') {
         return this.recover({ kind: 'material', materialId: place.materialId }, '材料转写完成后才能开始学习')
       }
       if (place.kind === 'review' && (!currentMaterial.nextReviewAt || new Date(currentMaterial.nextReviewAt) > new Date())) {
         return this.recover({ kind: 'material', materialId: place.materialId }, '该材料尚未到复习时间')
+      }
+      if (place.kind === 'stage-review' && firstRoundStages.indexOf(place.stage) >= firstRoundStages.indexOf(currentMaterial.firstRoundStage)) {
+        return this.recover({ kind: 'material', materialId: place.materialId }, '该阶段尚未完成')
       }
     } else if (place.kind === 'word') {
       currentWord = await this.dependencies.wordRepository.getEntry(place.wordId)

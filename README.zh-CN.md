@@ -84,9 +84,15 @@ Hear & Say 目前通过 GitHub Releases 发布：
 1. 从最新的 [GitHub Release](https://github.com/tutar/hear-say/releases) 下载 `hear-say-vX.Y.Z-chrome.zip`。GitHub 自动生成的 “Source code” 压缩包不是可直接加载的扩展。
 2. 解压文件，打开 `chrome://extensions`，启用“开发者模式”。
 3. 点击“加载已解压的扩展程序”，选择解压后的目录。
-4. 从 Hear & Say 的头像菜单打开“AI 服务”，配置音频转写和词汇解释服务。
+4. 首次打开时，在“AI 服务”中配置音频转写和词汇解释。你可以离开设置页，但尚未完成配置的相关功能会保持禁用。
 
-转写端点需支持 `POST /v1/audio/transcriptions`、带时间戳的 `verbose_json` 响应，以及来自 Chrome 扩展的请求。如果转写失败，Hear & Say 会保留材料和原始音频，供你重试或导入 SRT/VTT 字幕。
+### 转写配置
+
+AssemblyAI 是默认提供商。先在 [AssemblyAI dashboard](https://www.assemblyai.com/dashboard) 注册并复制 API Key，然后在“AI 服务”中粘贴密钥，选择 Universal-3.5 Pro 或 Universal-2；音频语言默认英语，只有确实需要时才改为自动检测。Hear & Say 会上传音频、提交转写任务，并轮询到带时间戳的结果完成。
+
+如需使用其他服务，选择“OpenAI 兼容”，填写 Base URL、模型、语言和可选 API Key。服务必须在 Base URL 下支持 `POST /audio/transcriptions`，并返回带时间戳的 OpenAI `verbose_json`。例如，本地 FunASR 可以使用 `http://localhost:8021/v1` 作为 Base URL，并填写 `sensevoice` 等模型；具体值及浏览器跨域配置取决于你的部署。
+
+Chrome 只会请求访问当前选中的端点。如果请求被阻止，请检查服务是否允许 Chrome 扩展访问，以及地址和网络是否正确。转写失败时，Hear & Say 会保留材料和原始音频，供你用同一提供商重试或导入 SRT/VTT 字幕；应用不会静默切换提供商。
 
 ## 本地优先设计
 

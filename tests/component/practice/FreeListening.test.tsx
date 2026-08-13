@@ -38,4 +38,60 @@ describe('FreeListening', () => {
     expect(screen.getByText('全文盲听')).toBeInTheDocument()
     expect(screen.getByText('Blind listening')).toBeInTheDocument()
   })
+
+  it('does not scroll past the opening rows when restoring progress at sentence five', () => {
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    const longSegments = Array.from({ length: 6 }, (_, index) => ({
+      id: `s${index + 1}`, materialId: 'm1', order: index, startSeconds: index * 3, endSeconds: (index + 1) * 3,
+      text: `Sentence ${index + 1}.`, isDifficult: false,
+    }))
+
+    render(<FreeListening mode="blind" material={material} segments={longSegments} preferences={{ ...DEFAULT_FREE_LISTENING_PREFERENCES, viewMode: 'list', textVisible: false }} progress={{ materialId: 'm1', segmentIndex: 4, positionSeconds: 12, updatedAt: '' }} onPreferencesChange={vi.fn()} onProgressChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: '偷看字幕' }))
+
+    expect(screen.getByText('01')).toBeInTheDocument()
+    expect(screen.getByText('04')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '播放内容' })).toHaveClass('is-list')
+    expect(scrollIntoView).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '下一句' }))
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+  })
+
+  it('keeps playing the audio tail after the final sentence timestamp ends', () => {
+    const trailingMaterial = { ...material, durationSeconds: 35 }
+    const trailingSegments = [
+      { ...segments[0], startSeconds: 0, endSeconds: 20 },
+      { ...segments[1], startSeconds: 20, endSeconds: 31 },
+    ]
+    const { container } = render(<FreeListening mode="blind" material={trailingMaterial} segments={trailingSegments} preferences={{ ...DEFAULT_FREE_LISTENING_PREFERENCES, viewMode: 'list' }} progress={{ materialId: 'm1', segmentIndex: 1, positionSeconds: 30, updatedAt: '' }} onPreferencesChange={vi.fn()} onProgressChange={vi.fn()} />)
+    const audio = container.querySelector('audio')!
+    const pause = vi.spyOn(audio, 'pause')
+
+    audio.currentTime = 31
+    fireEvent.timeUpdate(audio)
+    audio.currentTime = 34
+    fireEvent.timeUpdate(audio)
+
+    expect(pause).not.toHaveBeenCalled()
+    expect(screen.getByRole('slider', { name: '播放进度' })).toHaveValue('34')
+  })
+
+  it('restarts full-article looping only when the audio actually ends', () => {
+    const trailingMaterial = { ...material, durationSeconds: 35 }
+    const trailingSegments = [{ ...segments[0], endSeconds: 31 }]
+    const { container } = render(<FreeListening material={trailingMaterial} segments={trailingSegments} preferences={{ ...DEFAULT_FREE_LISTENING_PREFERENCES, loopMode: 'full' }} progress={{ materialId: 'm1', segmentIndex: 0, positionSeconds: 30, updatedAt: '' }} onPreferencesChange={vi.fn()} onProgressChange={vi.fn()} />)
+    const audio = container.querySelector('audio')!
+    const play = vi.spyOn(audio, 'play').mockResolvedValue()
+
+    audio.currentTime = 31
+    fireEvent.timeUpdate(audio)
+    expect(play).not.toHaveBeenCalled()
+
+    audio.currentTime = 35
+    fireEvent.ended(audio)
+    expect(audio.currentTime).toBe(0)
+    expect(play).toHaveBeenCalledOnce()
+  })
 })

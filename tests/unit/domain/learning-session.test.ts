@@ -11,10 +11,10 @@ describe('learning session state machine', () => {
     expect(runtime.slices.map((slice) => [slice.mode, (new Date(slice.endedAt).getTime() - new Date(slice.startedAt).getTime()) / 1000])).toEqual([['listening', 60], ['listening', 120]])
   })
 
-  it('requires three real intensive repetitions or an explicit skip', () => {
+  it('allows leaving an intensive sentence after one completed pause or an explicit skip', () => {
     let runtime = reduceLearningSession(start(), { type: 'stage_completed', at: '2026-08-01T00:00:01.000Z' })
     expect(canLeaveIntensiveSegment(runtime.session, 'a')).toBe(false)
-    for (let count = 0; count < 3; count += 1) runtime = reduceLearningSession(runtime, { type: 'intensive_repetition_completed', segmentId: 'a', at: `2026-08-01T00:00:0${count + 2}.000Z` })
+    runtime = reduceLearningSession(runtime, { type: 'intensive_segment_completed', segmentId: 'a', at: '2026-08-01T00:00:02.000Z' })
     expect(canLeaveIntensiveSegment(runtime.session, 'a')).toBe(true)
     runtime = reduceLearningSession(runtime, { type: 'intensive_segment_skipped', segmentId: 'b', at: '2026-08-01T00:00:05.000Z' })
     expect(canLeaveIntensiveSegment(runtime.session, 'b')).toBe(true)
