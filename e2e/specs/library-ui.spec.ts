@@ -1,6 +1,9 @@
 import { test, expect, chromium, type BrowserContext, type Page, type Worker } from '@playwright/test'
 
-declare const chrome: { runtime: { sendMessage: (message: unknown) => Promise<unknown> } }
+declare const chrome: {
+  runtime: { sendMessage: (message: unknown) => Promise<unknown> }
+  storage: { local: { set: (values: Record<string, unknown>) => Promise<void> } }
+}
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -75,6 +78,10 @@ test.describe('library controls', () => {
     await expect(page).toHaveURL(/#\/settings$/)
     const appPages = context.pages().filter((candidate) => candidate.url().includes('/app.html'))
     expect(appPages).toHaveLength(1)
+    await worker.evaluate(() => chrome.storage.local.set({
+      asrSettings: { provider: 'assemblyai', baseUrl: 'https://api.assemblyai.com/v2', apiKey: 'e2e-key', model: 'universal-3-pro', language: 'en' },
+      vocabularySettings: { baseUrl: 'https://api.deepseek.com', apiKey: 'e2e-key', model: 'deepseek-v4-flash' },
+    }))
   })
 
   test('centres a clearly visible add-audio glyph', async () => {
@@ -93,6 +100,67 @@ test.describe('library controls', () => {
     expect(result.strokeWidth).toBeGreaterThanOrEqual(2.5)
   })
 
+  test('keeps primary pages on one compact visual rhythm', async () => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+
+    await page.goto(page.url().replace(/#.*$/, '#/library'))
+    const libraryTitleSize = await page.getByRole('heading', { name: '你的听说素材' }).evaluate((heading) => Number.parseFloat(getComputedStyle(heading).fontSize))
+    const addAudioSize = await page.locator('.file-cta').evaluate((control) => {
+      const box = control.getBoundingClientRect()
+      return { width: box.width, height: box.height }
+    })
+
+    await page.goto(page.url().replace(/#.*$/, '#/words'))
+    const wordbookTitleSize = await page.getByRole('heading', { name: '单词本' }).evaluate((heading) => Number.parseFloat(getComputedStyle(heading).fontSize))
+
+    await page.goto(page.url().replace(/#.*$/, '#/settings'))
+    const settingsTitleSize = await page.getByRole('heading', { name: 'AI 服务设置' }).evaluate((heading) => Number.parseFloat(getComputedStyle(heading).fontSize))
+    const controls = await page.locator('.ai-service-settings input, .ai-service-settings select').evaluateAll((elements) => elements.map((element) => {
+      const style = getComputedStyle(element)
+      return {
+        height: element.getBoundingClientRect().height,
+        radius: style.borderRadius,
+        background: style.backgroundColor,
+      }
+    }))
+    const transcriptionNote = await page.locator('.ai-service-settings section').first().locator('form > p').evaluate((note) => {
+      const style = getComputedStyle(note)
+      return { color: style.color, fontSize: Number.parseFloat(style.fontSize) }
+    })
+
+    expect.soft(addAudioSize.width).toBeLessThanOrEqual(44)
+    expect.soft(addAudioSize.height).toBeLessThanOrEqual(44)
+    expect.soft(Math.max(libraryTitleSize, wordbookTitleSize, settingsTitleSize) - Math.min(libraryTitleSize, wordbookTitleSize, settingsTitleSize)).toBeLessThanOrEqual(1)
+    expect.soft(Math.max(...controls.map(({ height }) => height)) - Math.min(...controls.map(({ height }) => height))).toBeLessThanOrEqual(1)
+    expect.soft(new Set(controls.map(({ radius }) => radius)).size).toBe(1)
+    expect.soft(new Set(controls.map(({ background }) => background)).size).toBe(1)
+    expect.soft(transcriptionNote.color).toBe('rgb(101, 117, 111)')
+    expect.soft(transcriptionNote.fontSize).toBeLessThanOrEqual(14)
+
+    const transcriptionSection = page.locator('.ai-service-settings section').first()
+    await transcriptionSection.getByLabel('API Key').fill('e2e-key')
+    await transcriptionSection.getByRole('button', { name: '保存转写设置' }).click()
+    await expect(transcriptionSection.getByRole('status')).toHaveText('转写设置已保存')
+    await expect(page.locator('.settings-page > .settings-saved')).toHaveCount(0)
+
+    const vocabularySection = page.locator('.ai-service-settings section').nth(1)
+    await vocabularySection.getByLabel('DeepSeek API 地址').fill('')
+    await vocabularySection.getByLabel('DeepSeek 模型').fill('')
+    await vocabularySection.getByLabel('DeepSeek API Key').fill('')
+    await vocabularySection.getByRole('button', { name: '保存词汇解释设置' }).click()
+    await expect(vocabularySection.getByRole('alert')).toHaveText('请填写 API 地址、模型和 API Key')
+    await expect(vocabularySection.getByText('词汇解释设置已保存')).toHaveCount(0)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    for (const place of ['library', 'words', 'settings']) {
+      await page.goto(page.url().replace(/#.*$/, `#/${place}`))
+      const viewport = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth }))
+      expect.soft(viewport.scrollWidth).toBeLessThanOrEqual(viewport.width)
+    }
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto(page.url().replace(/#.*$/, '#/library'))
+  })
+
   test('keeps material overview as compact as the library list', async () => {
     await page.goto(page.url().replace(/#.*$/, '#/library'))
     await seedMaterial(page)
@@ -103,7 +171,7 @@ test.describe('library controls', () => {
     await row.click()
     await expect(page.getByRole('region', { name: '学习进度' })).toBeVisible()
     const summaryHeight = await page.locator('.overview-summary').evaluate((element) => element.getBoundingClientRect().height)
-    const articleHeights = await page.locator('.learning-map article').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
+    const articleHeights = await page.locator('.learning-map .learning-stage-card').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
     for (const height of articleHeights) expect(Math.abs(height - libraryRowHeight)).toBeLessThanOrEqual(4)
     expect(summaryHeight).toBeLessThanOrEqual(150)
   })
@@ -118,7 +186,7 @@ test.describe('library controls', () => {
     const libraryRowHeight = await row.locator('xpath=..').evaluate((element) => element.getBoundingClientRect().height)
     await row.click()
     const summaryHeight = await page.locator('.overview-summary').evaluate((element) => element.getBoundingClientRect().height)
-    const articleHeights = await page.locator('.learning-map article').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
+    const articleHeights = await page.locator('.learning-map .learning-stage-card').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))
     expect(summaryHeight).toBeLessThanOrEqual(150)
     for (const height of articleHeights) {
       expect(height).toBeGreaterThanOrEqual(96)

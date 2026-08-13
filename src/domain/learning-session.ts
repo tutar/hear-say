@@ -13,7 +13,7 @@ export type SessionEvent =
   | { type: 'segment_selected'; index: number; at: string }
   | { type: 'playback_changed'; rate?: number; loopSegment?: boolean; at: string }
   | { type: 'audio_playback_changed'; playing: boolean; at: string }
-  | { type: 'intensive_repetition_completed'; segmentId: string; at: string }
+  | { type: 'intensive_segment_completed'; segmentId: string; at: string }
   | { type: 'intensive_segment_skipped'; segmentId: string; at: string }
   | { type: 'retell_keywords_changed'; keywords: string[]; at: string }
   | { type: 'session_ended'; at: string }
@@ -54,9 +54,8 @@ export function reduceLearningSession(runtime: SessionRuntime, event: SessionEve
     next = { ...closed, visibleSince: wasVisible ? event.at : null, session: { ...closed.session, audioPlaying: event.playing } }
   }
   else if (event.type === 'retell_keywords_changed') next = { ...runtime, session: { ...runtime.session, retellKeywords: [...event.keywords] } }
-  else if (event.type === 'intensive_repetition_completed') {
-    const progress = runtime.session.intensiveProgress[event.segmentId] ?? { completed: 0, skipped: false }
-    next = { ...runtime, session: { ...runtime.session, intensiveProgress: { ...runtime.session.intensiveProgress, [event.segmentId]: { completed: Math.min(3, progress.completed + 1), skipped: false } } } }
+  else if (event.type === 'intensive_segment_completed') {
+    next = { ...runtime, session: { ...runtime.session, intensiveProgress: { ...runtime.session.intensiveProgress, [event.segmentId]: { completed: 1, skipped: false } } } }
   } else if (event.type === 'intensive_segment_skipped') {
     const progress = runtime.session.intensiveProgress[event.segmentId] ?? { completed: 0, skipped: false }
     next = { ...runtime, session: { ...runtime.session, intensiveProgress: { ...runtime.session.intensiveProgress, [event.segmentId]: { ...progress, skipped: true } } } }
@@ -66,5 +65,5 @@ export function reduceLearningSession(runtime: SessionRuntime, event: SessionEve
 
 export function canLeaveIntensiveSegment(session: LearningSession, segmentId: string): boolean {
   const progress = session.intensiveProgress[segmentId]
-  return Boolean(progress?.skipped || progress?.completed === 3)
+  return Boolean(progress?.skipped || progress?.completed === 1)
 }

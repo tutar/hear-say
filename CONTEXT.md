@@ -68,9 +68,12 @@ _Avoid_: Rolling seven days, Sunday-start week
 The one-time progression through Blind Listening, Intensive Listening, Difficult Sentence Shadowing, and Retelling for a ready material. Its difficult-sentence list freezes when Difficult Sentence Shadowing begins, and it may span multiple Learning Sessions until completed.
 _Avoid_: Practice, initial Review
 
-**Intensive Listening Repetition**:
-A complete playback from the current sentence's start to its end during intensive listening. Each sentence requires three repetitions by default or an explicit skip; progress belongs to the current First Round or Review across Learning Sessions, while partial playback and seeking do not count.
-_Avoid_: Play-button click, audio loop count
+**Intensive Listening Pause**:
+The four-second pause after one sentence reaches its end during Intensive Listening. It may be paused and resumed; when it finishes, the sentence completes and the next sentence starts automatically. Skipping moves on without completing the sentence, and an unfinished pause is not persisted.
+
+**Practice Segment**:
+The timestamped unit used for sentence-level listening practice. For new AssemblyAI transcriptions, sentence results are combined only within an AssemblyAI paragraph boundary, targeting 5–12 seconds and at most 20 words. A single long source sentence remains intact, while existing materials are never regrouped automatically.
+_Avoid_: Repetition count, recording countdown, play-button click
 
 **Retelling Keywords**:
 The learner-authored keyword notes saved independently for one First Round or one Review. A later Review never overwrites an earlier set.

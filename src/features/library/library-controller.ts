@@ -2,10 +2,10 @@ import { parseSubtitle } from '../../domain/subtitles'
 import type { Material, Segment } from '../../domain/types'
 import { MaterialRepository } from '../../db/material-repository'
 
-export type Transcribe = (input: { audioBlob: Blob; filename: string; materialId: string; durationSeconds: number | null }) => Promise<Segment[]>
+export type Transcribe = (input: { audioBlob: Blob; filename: string; materialId: string; durationSeconds: number | null; onWarning?: (message: string) => void }) => Promise<Segment[]>
 
 export class LibraryController {
-  constructor(private readonly repository: MaterialRepository, private readonly transcribe: Transcribe) {}
+  constructor(private readonly repository: MaterialRepository, private readonly transcribe: Transcribe, private readonly onWarning?: (message: string) => void) {}
 
   async importAudio(file: File, durationSeconds: number | null, onPending?: (material: Material) => void): Promise<Material> {
     const material = await this.repository.createPending({ title: file.name, audioBlob: file, durationSeconds })
@@ -28,7 +28,7 @@ export class LibraryController {
 
   private async transcribeExisting(material: Material): Promise<Material> {
     try {
-      const segments = await this.transcribe({ audioBlob: material.audioBlob, filename: material.title, materialId: material.id, durationSeconds: material.durationSeconds })
+      const segments = await this.transcribe({ audioBlob: material.audioBlob, filename: material.title, materialId: material.id, durationSeconds: material.durationSeconds, onWarning: this.onWarning })
       await this.repository.replaceSegments(material.id, segments)
     } catch (error) {
       await this.repository.markTranscriptionFailed(material.id, error instanceof Error ? error.message : 'ASR transcription failed')

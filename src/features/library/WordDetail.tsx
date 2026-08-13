@@ -10,7 +10,7 @@ export function WordDetail({ entry, activeTerm, onBack, onSpeak, onOpenSource }:
     <div className="word-contexts">{entry.contexts.map((context) => <article key={context.id}>
       <div><strong>{context.partOfSpeech} · {context.meaningZh}</strong><span>{context.ipa}</span></div>
       <p>{context.contextExplanationZh}</p><blockquote>{context.sentence}</blockquote>
-      <button type="button" onClick={() => onOpenSource(context.source)} aria-label={`打开来源 ${context.source.title}`}>{context.source.kind === 'web' ? '网页来源' : '音频材料'} · {context.source.title} →</button>
+      {context.source.kind === 'manual' ? <span className="word-manual-source">手动添加</span> : <button type="button" onClick={() => onOpenSource(context.source)} aria-label={`打开来源 ${context.source.title}`}>{context.source.kind === 'web' ? '网页来源' : '音频材料'} · {context.source.title} →</button>}
     </article>)}</div>
   </main>
 }

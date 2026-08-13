@@ -21,7 +21,7 @@ export class WordRepository {
     const now = new Date().toISOString()
     const existing = await db.wordEntries.where('normalizedTerm').equals(input.normalizedTerm).first()
     if (existing) {
-      const duplicate = existing.contexts.some((context) => context.sentence === input.sentence && sourceKey(context.source) === sourceKey(input.source))
+      const duplicate = existing.contexts.some((context) => sameContext(context.sentence, context.source, input.sentence, input.source))
       if (duplicate) return existing
       const updated: WordEntry = {
         ...existing,
@@ -42,7 +42,7 @@ export class WordRepository {
   }
   async hasContext(input: Pick<NewWordContext, 'normalizedTerm' | 'sentence' | 'source'>): Promise<boolean> {
     const existing = await db.wordEntries.where('normalizedTerm').equals(input.normalizedTerm).first()
-    return Boolean(existing?.contexts.some((context) => context.sentence === input.sentence && sourceKey(context.source) === sourceKey(input.source)))
+    return Boolean(existing?.contexts.some((context) => sameContext(context.sentence, context.source, input.sentence, input.source)))
   }
 
   async listEntries(): Promise<WordEntry[]> { return db.wordEntries.orderBy('lastSeenAt').reverse().toArray() }
@@ -59,7 +59,11 @@ export class WordRepository {
   }
 }
 
-const sourceKey = (source: WordSource) => source.kind === 'web' ? `web:${source.url}` : `material:${source.materialId}:${source.segmentId}`
+const sourceKey = (source: WordSource) => source.kind === 'web' ? `web:${source.url}` : source.kind === 'material' ? `material:${source.materialId}:${source.segmentId}` : `manual:${source.hasUserContext ? 'context' : 'standalone'}`
+const sameContext = (leftSentence: string, leftSource: WordSource, rightSentence: string, rightSource: WordSource) => {
+  if (leftSource.kind === 'manual' && rightSource.kind === 'manual' && !leftSource.hasUserContext && !rightSource.hasUserContext) return true
+  return leftSentence === rightSentence && sourceKey(leftSource) === sourceKey(rightSource)
+}
 const lookupKey = (selection: VocabularySelection) => `${selection.term.trim().toLowerCase()}\n${selection.sentence.trim()}`
 const toContext = (input: NewWordContext, createdAt: string) => ({
   id: crypto.randomUUID(), ipa: input.ipa, partOfSpeech: input.partOfSpeech, meaningZh: input.meaningZh,

@@ -1,15 +1,25 @@
 import type { AsrSettings, VocabularySettings } from '../domain/types'
 
 export const DEFAULT_ASR_SETTINGS: AsrSettings = {
-  baseUrl: 'http://localhost:8021/v1',
+  provider: 'assemblyai',
+  baseUrl: 'https://api.assemblyai.com/v2',
   apiKey: '',
-  model: 'sensevoice',
+  model: 'universal-3-5-pro',
   language: 'en',
 }
 export const DEFAULT_VOCABULARY_SETTINGS: VocabularySettings = {
   baseUrl: 'https://api.deepseek.com',
   apiKey: '',
   model: 'deepseek-v4-flash',
+}
+
+export function isAsrConfigured(settings: AsrSettings): boolean {
+  if (settings.provider === 'assemblyai') return settings.apiKey.trim().length > 0
+  return settings.baseUrl.trim().length > 0 && settings.model.trim().length > 0
+}
+
+export function isVocabularyConfigured(settings: VocabularySettings): boolean {
+  return Boolean(settings.baseUrl.trim() && settings.model.trim() && settings.apiKey.trim())
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -20,7 +30,14 @@ function normalizeBaseUrl(baseUrl: string): string {
 
 export async function loadAsrSettings(): Promise<AsrSettings> {
   const stored = await browser.storage.local.get('asrSettings') as { asrSettings?: AsrSettings }
-  return stored.asrSettings ? { ...DEFAULT_ASR_SETTINGS, ...stored.asrSettings } : { ...DEFAULT_ASR_SETTINGS }
+  if (!stored.asrSettings?.provider) return { ...DEFAULT_ASR_SETTINGS }
+  const settings = { ...DEFAULT_ASR_SETTINGS, ...stored.asrSettings }
+  if (settings.provider === 'assemblyai' && settings.model === 'universal-3-pro') {
+    const migrated = { ...settings, model: 'universal-3-5-pro' }
+    await browser.storage.local.set({ asrSettings: migrated })
+    return migrated
+  }
+  return settings
 }
 
 export async function saveAsrSettings(settings: AsrSettings): Promise<void> {

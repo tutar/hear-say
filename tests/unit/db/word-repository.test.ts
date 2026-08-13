@@ -29,4 +29,13 @@ describe('WordRepository', () => {
     expect(entries[0].contexts).toHaveLength(2)
     expect(entries[0].contexts.map((context) => context.partOfSpeech)).toEqual(['名词', '动词'])
   })
+
+  it('does not duplicate a standalone manually added word when its generated example changes', async () => {
+    const repository = new WordRepository()
+    const source = { kind: 'manual' as const, title: '手动添加', hasUserContext: false }
+    const base = { term: 'encounter', normalizedTerm: 'encounter', ipa: '/ɪnˈkaʊntər/', partOfSpeech: 'verb', meaningZh: '遇到', contextExplanationZh: '典型用法', source }
+    await repository.addContext({ ...base, sentence: 'We encountered a delay.' })
+    await repository.addContext({ ...base, sentence: 'She encountered an old friend.' })
+    expect((await repository.listEntries())[0].contexts).toHaveLength(1)
+  })
 })

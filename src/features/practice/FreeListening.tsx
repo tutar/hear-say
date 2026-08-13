@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { moveFreeListeningCursor } from '../../domain/free-listening'
 import type { FreeListeningPreferences, FreeListeningProgress, Material, Segment } from '../../domain/types'
 import { PlaybackRateSelect, PlayerSelect, PlayGlyph, StepGlyph } from './PlayerControls'
@@ -15,11 +15,13 @@ type Props = {
   onProgressChange: (progress: FreeListeningProgress) => void | Promise<void>
   onPlaybackChange?: (playing: boolean) => void
   mode?: 'free' | 'blind'
+  completionAction?: ReactNode
+  onAudioEnded?: () => void
 }
 
 const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 
-export function FreeListening({ material, segments, preferences: initialPreferences, progress, onPreferencesChange, onProgressChange, onPlaybackChange, mode = 'free' }: Props) {
+export function FreeListening({ material, segments, preferences: initialPreferences, progress, onPreferencesChange, onProgressChange, onPlaybackChange, mode = 'free', completionAction, onAudioEnded }: Props) {
   const [preferences, setPreferences] = useState(initialPreferences)
   const [difficultWords, setDifficultWords] = useState<string[]>([])
   const [detailIndex, setDetailIndex] = useState<number | null>(null)
@@ -27,13 +29,18 @@ export function FreeListening({ material, segments, preferences: initialPreferen
   const audioRef = session.audioRef
   const { segmentIndex, position, playing } = { segmentIndex: session.state.segmentIndex, position: session.state.positionSeconds, playing: session.state.playing }
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const hasMountedList = useRef(false)
   const audioUrl = useMemo(() => URL.createObjectURL(material.audioBlob), [material.audioBlob])
   const current = segments[segmentIndex]
   useEffect(() => { void new WordRepository().listEntries().then((entries) => setDifficultWords(entries.map((entry) => entry.term).filter(Boolean))) }, [])
 
   useEffect(() => () => URL.revokeObjectURL(audioUrl), [audioUrl])
   useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = preferences.playbackRate }, [preferences.playbackRate])
-  useEffect(() => { if (preferences.viewMode === 'list') rowRefs.current[segmentIndex]?.scrollIntoView?.({ block: 'nearest' }) }, [preferences.viewMode, segmentIndex])
+  useEffect(() => {
+    if (preferences.viewMode !== 'list') { hasMountedList.current = false; return }
+    if (!hasMountedList.current) { hasMountedList.current = true; return }
+    rowRefs.current[segmentIndex]?.scrollIntoView?.({ block: 'nearest' })
+  }, [preferences.viewMode, segmentIndex])
   useEffect(() => {
     const timer = window.setInterval(() => saveProgress(), 5_000)
     return () => { clearInterval(timer); saveProgress() }
@@ -72,7 +79,14 @@ export function FreeListening({ material, segments, preferences: initialPreferen
     const audio = audioRef.current
     if (!audio || !current) return
     session.dispatch({ type: 'seek', positionSeconds: audio.currentTime })
-    if (audio.currentTime >= current.endSeconds) move(1, true)
+    const isLastSegment = segmentIndex === segments.length - 1
+    if (audio.currentTime >= current.endSeconds && (!isLastSegment || preferences.loopMode === 'sentence')) move(1, true)
+  }
+  function onEnded() {
+    if (onAudioEnded) { saveProgress(material.durationSeconds ?? position); onAudioEnded(); return }
+    if (preferences.loopMode !== 'full' || segments.length === 0 || !audioRef.current) { saveProgress(); return }
+    audioRef.current.currentTime = segments[0].startSeconds
+    selectSegment(0, true)
   }
 
   const chunked = current?.text.split(/([,;:.!?]\s*)/).filter(Boolean)
@@ -83,9 +97,9 @@ export function FreeListening({ material, segments, preferences: initialPreferen
     return text.replace(new RegExp(`\\b(${terms.map((term) => term.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&'))})[a-z]*\\b`, 'ig'), (match) => '·'.repeat(match.length))
   }
   return <main className="free-listening">
-    <audio ref={audioRef} src={audioUrl} onTimeUpdate={onTimeUpdate} onPlay={() => { session.dispatch({ type: 'play' }); onPlaybackChange?.(true) }} onPause={() => { session.dispatch({ type: 'pause' }); saveProgress(); onPlaybackChange?.(false) }} />
+    <audio ref={audioRef} src={audioUrl} onTimeUpdate={onTimeUpdate} onEnded={onEnded} onPlay={() => { session.dispatch({ type: 'play' }); onPlaybackChange?.(true) }} onPause={() => { session.dispatch({ type: 'pause' }); saveProgress(); onPlaybackChange?.(false) }} />
     <header className="free-listening-heading"><span className="listening-mode">{mode === 'blind' ? '全文盲听' : '随心听'}</span><div><p className="eyebrow">{mode === 'blind' ? 'Blind listening' : 'Free listening'}</p><h1>{material.title}</h1></div><PlaybackRateSelect value={preferences.playbackRate} onChange={(playbackRate) => changePreferences({ playbackRate })} compact /></header>
-    <section className={`free-listening-stage ${preferences.textVisible ? '' : 'is-hidden'}`} aria-label="播放内容">
+    <section className={`free-listening-stage ${preferences.viewMode === 'list' ? 'is-list' : 'is-single'} ${preferences.textVisible ? '' : 'is-hidden'}`} aria-label="播放内容">
       {preferences.viewMode === 'single' ? <div className="free-sentence">
         {preferences.textVisible ? <>
           <p>{preferences.chunksVisible ? chunked?.map((part, index) => <mark key={`${part}-${index}`}>{part}</mark>) : current?.text}</p>
@@ -102,6 +116,7 @@ export function FreeListening({ material, segments, preferences: initialPreferen
         <div className="segmented-control" aria-label="文本模式"><button type="button" className={preferences.viewMode === 'single' ? 'active' : ''} onClick={() => changePreferences({ viewMode: 'single' })}>单句</button><button type="button" className={preferences.viewMode === 'list' ? 'active' : ''} onClick={() => changePreferences({ viewMode: 'list' })}>每句列表</button></div>
         <button className="eye-control" type="button" aria-label={preferences.textVisible ? '隐藏字幕' : '偷看字幕'} onClick={() => changePreferences({ textVisible: !preferences.textVisible })}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.8" />{!preferences.textVisible && <path d="m4 4 16 16" />}</svg>{preferences.textVisible ? '隐藏字幕' : '偷看字幕'}</button><PlayerSelect label="遮挡" ariaLabel="遮挡模式" value={preferences.maskMode} onChange={(maskMode) => changePreferences({ maskMode: maskMode as FreeListeningPreferences['maskMode'] })}><option value="all">全部遮挡</option><option value="difficult">困难词遮挡</option></PlayerSelect>
         <PlayerSelect label="循环" ariaLabel="循环模式" value={preferences.loopMode} onChange={(loopMode) => changePreferences({ loopMode: loopMode as FreeListeningPreferences['loopMode'] })}><option value="off">不循环</option><option value="full">整篇循环</option><option value="sentence">单句循环</option></PlayerSelect>
+        {completionAction}
       </div>
     </section>
   </main>

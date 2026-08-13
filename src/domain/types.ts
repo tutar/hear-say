@@ -118,12 +118,14 @@ export type Material = {
 }
 
 export type AsrLanguage = 'en' | 'auto'
-export type AsrSettings = { baseUrl: string; apiKey: string; model: string; language: AsrLanguage }
+export type AsrProvider = 'assemblyai' | 'openai-compatible'
+export type AsrSettings = { provider: AsrProvider; baseUrl: string; apiKey: string; model: string; language: AsrLanguage }
 
 export type VocabularySettings = { baseUrl: string; apiKey: string; model: string }
 export type WordSource =
   | { kind: 'web'; title: string; url: string }
   | { kind: 'material'; title: string; materialId: string; segmentId: string }
+  | { kind: 'manual'; title: string; hasUserContext: boolean }
 export type WordContext = {
   id: string
   ipa: string
